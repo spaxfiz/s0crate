@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8"/>
+  <title>Socrate · Hi-fi Prototype</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    .md h1{font-family:var(--display);font-size:24px;font-weight:600;margin:18px 0 10px;color:var(--ink)}
+    .md h2{font-family:var(--display);font-size:20px;font-weight:600;margin:16px 0 8px;color:var(--ink)}
+    .md h3{font-family:var(--display);font-size:17px;font-weight:600;margin:14px 0 6px;color:var(--ink)}
+    .md p{margin:0 0 12px}
+    .md ul, .md ol{margin:0 0 14px; padding-left: 22px}
+    .md li{margin-bottom:4px}
+    .md strong{color:var(--ink); font-weight: 600}
+    .md em{font-style: italic; color:var(--ink-soft)}
+    .md code{font-family:var(--mono); font-size: 0.88em; background: rgba(139,111,71,0.1); padding: 1px 5px; border-radius: 2px; color: var(--accent-deep)}
+    .md blockquote{
+      border-left: 2px solid var(--accent);
+      padding: 4px 0 4px 14px;
+      margin: 14px 0;
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 17px;
+      color: var(--ink-soft);
+      background: rgba(184,144,47,0.05);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="sidebar.jsx"></script>
+  <script type="text/babel" src="chat-view.jsx"></script>
+  <script type="text/babel" src="map-view.jsx"></script>
+  <script type="text/babel" src="home-and-settings.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    /* ────────── macOS Window Chrome (custom, parchment-friendly) ────────── */
+    function MacChrome({ title, children, onTweaksAvailable }){
+      return (
+        <div style={{
+          width: 1280, height: 820, borderRadius: 12, overflow:'hidden',
+          background:'var(--paper)',
+          boxShadow:'0 0 0 1px rgba(0,0,0,0.25), 0 30px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.25)',
+          display:'flex', flexDirection:'column', position:'relative',
+        }}>
+          {/* Title bar */}
+          <div style={{
+            height: 38, flexShrink: 0,
+            background: 'linear-gradient(180deg, #ede5d0, #d9cfb6)',
+            borderBottom: '1px solid #b3a586',
+            display:'flex', alignItems:'center', position:'relative',
+            padding: '0 12px',
+          }}>
+            <div style={{ display:'flex', gap: 8 }}>
+              {['#ff5f57','#febc2e','#28c840'].map((c,i)=>(
+                <div key={i} style={{
+                  width: 12, height: 12, borderRadius:'50%', background: c,
+                  border:'0.5px solid rgba(0,0,0,0.15)',
+                  boxShadow:'inset 0 1px 0 rgba(255,255,255,0.25)',
+                }}/>
+              ))}
+            </div>
+            <div style={{
+              position:'absolute', left:'50%', top:'50%', transform:'translate(-50%,-50%)',
+              fontFamily:'var(--display)', fontSize: 14, fontWeight: 600, fontStyle:'italic', color:'var(--ink-soft)', letterSpacing:'0.04em',
+            }}>
+              {title}
+            </div>
+          </div>
+          {children}
+          {/* Status bar */}
+          <div style={{
+            height: 24, flexShrink: 0,
+            background:'var(--paper-deep)',
+            borderTop:'1px solid var(--rule)',
+            padding:'0 14px',
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            fontFamily:'var(--sans)', fontSize: 10.5, color:'var(--ink-mute)', letterSpacing:'0.05em',
+          }}>
+            <span>Phase: <em style={{fontFamily:'var(--display)', fontStyle:'italic', color:'var(--ink-soft)'}}>Deep Dive · 2/12 folios</em></span>
+            <span style={{ display:'flex', gap: 14, alignItems:'center' }}>
+              <span>tauri · sidecar :8421</span>
+              <span style={{ display:'flex', alignItems:'center', gap: 5 }}>
+                <i style={{ width: 6, height: 6, borderRadius:'50%', background:'var(--moss)', display:'inline-block' }}/>
+                Anthropic · claude-3.5-sonnet
+              </span>
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    /* ────────── App ────────── */
+    function App(){
+      const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+        "phase": "questioning",
+        "view": "chat",
+        "fontScale": 0.95,
+        "showSettings": false,
+        "darkParchment": false
+      }/*EDITMODE-END*/;
+
+      const [tweaks, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+
+      const phase = tweaks.phase;
+      const view  = tweaks.view;
+
+      const [currentNodeId, setCurrentNodeId] = useState('n2.2');
+      const [showSettings, setShowSettings] = useState(false);
+      const currentNode = window.SocrateData.FLAT_NODES.find(n => n.id === currentNodeId);
+
+      const onNavigate = (id) => {
+        setCurrentNodeId(id);
+        setTweak({ view: 'chat', phase: 'deepDive' });
+      };
+      const onPhaseChange = (p) => {
+        if (p === 'syllabus'){ setTweak({ view: 'map' }); return; }
+        setTweak({ phase: p, view: 'chat' });
+      };
+
+      let body;
+      if (view === 'home'){
+        body = <window.HomeView onOpenSession={()=>setTweak({ view:'chat' })} onNewSession={()=>setTweak({ view:'chat', phase:'questioning' })}/>;
+      } else if (view === 'map'){
+        body = <window.MapView onPickNode={onNavigate} currentNodeId={currentNodeId}/>;
+      } else {
+        body = <window.ChatView phase={phase} currentNode={currentNode} onPhaseChange={onPhaseChange}/>;
+      }
+
+      const titleText = view === 'home' ? 'Socrate · Bibliotheca'
+                      : view === 'map'  ? 'Socrate · Mappa Cognitionis'
+                      : 'Socrate · 理解经济学基础';
+
+      const dark = tweaks.darkParchment;
+
+      return (
+        <div style={{
+          minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
+          padding: 28, background:
+            dark ? 'radial-gradient(circle at 50% 30%, #2c241a, #14100b)'
+                 : 'radial-gradient(circle at 50% 30%, #3a3024, #1a140e)',
+          fontSize: `${tweaks.fontScale * 14}px`,
+          filter: dark ? 'invert(0.88) hue-rotate(180deg)' : 'none',
+        }}>
+          <div style={dark ? { filter: 'invert(1) hue-rotate(180deg)' } : {}}>
+            <MacChrome title={titleText}>
+              <div style={{ flex: 1, display:'flex', minHeight: 0, position:'relative' }}>
+                <window.Sidebar
+                  session={window.SocrateData.SESSIONS.find(s=>s.active)}
+                  currentNodeId={currentNodeId}
+                  onNavigate={onNavigate}
+                  onNewSession={()=>{ setTweak({ view:'chat', phase:'questioning' }); }}
+                  view={view}
+                  setView={(v)=>setTweak({ view: v })}
+                  onOpenSettings={()=>setShowSettings(true)}
+                />
+                {body}
+                {showSettings && <window.SettingsModal onClose={()=>setShowSettings(false)}/>}
+              </div>
+            </MacChrome>
+          </div>
+
+          {/* Tweaks panel */}
+          {window.TweaksPanel && (
+            <window.TweaksPanel>
+              <window.TweakSection label="Phase · 学习阶段"/>
+              <window.TweakRadio
+                label="Phase"
+                value={phase}
+                onChange={v=>setTweak('phase', v)}
+                options={[
+                  { value:'questioning', label:'Inquiry' },
+                  { value:'deepDive',    label:'Deep Dive' },
+                  { value:'summary',     label:'Summary' },
+                ]}/>
+              <window.TweakSection label="View · 视图"/>
+              <window.TweakRadio
+                label="View"
+                value={view}
+                onChange={v=>setTweak('view', v)}
+                options={[
+                  { value:'home', label:'Home' },
+                  { value:'chat', label:'Reading' },
+                  { value:'map',  label:'Map' },
+                ]}/>
+              <window.TweakSection label="Display"/>
+              <window.TweakSlider label="Type scale" value={tweaks.fontScale} onChange={v=>setTweak('fontScale', v)} min={0.85} max={1.2} step={0.05}/>
+              <window.TweakToggle label="Dark parchment" value={tweaks.darkParchment} onChange={v=>setTweak('darkParchment', v)}/>
+              <window.TweakButton label="Open Settings ↗" onClick={()=>setShowSettings(true)}/>
+            </window.TweaksPanel>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

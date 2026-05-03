@@ -1,0 +1,286 @@
+/* ───────── Socrate · Classical Academic Aesthetic ───────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;500;600;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+
+:root{
+  /* Parchment palette */
+  --paper:        #f5f1e6;
+  --paper-deep:   #ede6d3;
+  --paper-shadow: #d6cdb3;
+  --ink:          #1a1614;
+  --ink-soft:     #4a3f33;
+  --ink-mute:     #8a7a63;
+  --ink-faint:    #b9aa8d;
+  --rule:         #c8bb9c;
+  --rule-soft:    #d9cfb6;
+  --accent:       #8b6f47;       /* warm brown */
+  --accent-deep:  #6b4f2c;
+  --accent-soft:  #c4a47c;
+  --crimson:      #7d3c2d;       /* in-progress */
+  --moss:         #5b6e3e;       /* complete */
+  --gold:         #b8902f;
+  --highlight:    #f4e6b8;       /* margin highlight */
+
+  --serif:   "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  --sans:    "Inter", "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+  --mono:    "JetBrains Mono", "SF Mono", monospace;
+}
+
+*{ box-sizing: border-box; }
+html, body{
+  margin:0; padding:0; height:100%;
+  background:#2a241c;
+  font-family: var(--serif);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Subtle paper grain texture utility */
+.paper-grain{
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(rgba(120,90,40,0.04) 1px, transparent 1px),
+    radial-gradient(rgba(120,90,40,0.025) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255,250,235,0.3), rgba(225,210,170,0.05));
+  background-size: 3px 3px, 7px 7px, 100% 100%;
+  background-position: 0 0, 1px 2px, 0 0;
+}
+.paper-grain-deep{
+  background-color: var(--paper-deep);
+  background-image:
+    radial-gradient(rgba(120,90,40,0.05) 1px, transparent 1px),
+    radial-gradient(rgba(120,90,40,0.03) 1px, transparent 1px);
+  background-size: 3px 3px, 7px 7px;
+}
+
+/* Hand-drawn divider */
+.rule{
+  border:0; height:1px;
+  background: linear-gradient(90deg, transparent, var(--rule) 10%, var(--rule) 90%, transparent);
+}
+.rule-double{
+  border:0; height:5px;
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+  background: transparent;
+}
+
+/* Smallcaps label */
+.label{
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+/* Drop cap helper */
+.drop-cap::first-letter{
+  font-family: var(--display);
+  font-size: 4.5em;
+  float: left;
+  line-height: 0.85;
+  padding: 0.08em 0.08em 0 0;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+/* Underline link style */
+.under-link{
+  color: var(--ink);
+  text-decoration: none;
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  padding-bottom: 1px;
+  cursor: pointer;
+  transition: background-size 0.2s;
+}
+.under-link:hover{
+  background-size: 100% 2px;
+}
+
+/* Scrollbars */
+.thin-scroll::-webkit-scrollbar{ width: 8px; height: 8px; }
+.thin-scroll::-webkit-scrollbar-track{ background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb{
+  background: var(--rule);
+  border-radius: 4px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover{ background: var(--ink-faint); }
+
+/* Streaming caret */
+@keyframes blink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+.stream-caret::after{
+  content:'';
+  display:inline-block;
+  width: 7px; height: 1em;
+  background: var(--accent);
+  margin-left: 3px;
+  vertical-align: -2px;
+  animation: blink 0.9s step-end infinite;
+}
+
+/* Pulsing dot for in-progress nodes */
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 0 0 rgba(125,60,45,0.4); }
+  50%     { box-shadow: 0 0 0 6px rgba(125,60,45,0); }
+}
+.dot-pulse{ animation: pulse-dot 1.6s ease-in-out infinite; }
+
+/* Constellation map gridlines */
+.map-grid{
+  background-image:
+    linear-gradient(rgba(180,140,80,0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(180,140,80,0.07) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px;
+}
+
+/* Card stack metaphor */
+.card-stack{
+  position: relative;
+}
+.card-stack::before,
+.card-stack::after{
+  content:'';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  z-index: -1;
+}
+.card-stack::before{ transform: translate(3px, 3px) rotate(0.5deg); opacity: 0.7; }
+.card-stack::after { transform: translate(6px, 6px) rotate(-0.8deg); opacity: 0.4; }
+
+/* Wax seal style icon */
+.seal{
+  display:inline-flex; align-items:center; justify-content:center;
+  width: 28px; height: 28px;
+  background: radial-gradient(circle at 30% 30%, var(--accent-soft), var(--accent-deep));
+  color: var(--paper);
+  border-radius: 50%;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.15);
+}
+
+/* Buttons */
+.btn{
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover{
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: rgba(139,111,71,0.06);
+}
+.btn-primary{
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.btn-primary:hover{
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: var(--paper);
+}
+.btn-ghost{
+  border-color: transparent;
+  color: var(--ink-mute);
+}
+.btn-ghost:hover{
+  background: rgba(139,111,71,0.08);
+  border-color: transparent;
+  color: var(--ink);
+}
+
+/* Chip option (Socratic choices) */
+.chip{
+  font-family: var(--serif);
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.chip-num{
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.chip:hover{
+  border-color: var(--accent);
+  background: var(--highlight);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--accent-deep);
+}
+.chip-custom{
+  border-style: dashed;
+  color: var(--ink-mute);
+  font-style: italic;
+}
+
+/* Marginalia note */
+.margin-note{
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--ink-mute);
+  border-left: 1px solid var(--accent-soft);
+  padding-left: 10px;
+  line-height: 1.4;
+}
+
+/* Subtle shake on send */
+@keyframes nudge { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-2px)} }
+
+/* Typing dots */
+@keyframes bob { 0%,80%,100%{transform:translateY(0); opacity:0.4} 40%{transform:translateY(-3px); opacity:1} }
+.bob1{animation: bob 1.2s ease-in-out infinite;}
+.bob2{animation: bob 1.2s ease-in-out 0.15s infinite;}
+.bob3{animation: bob 1.2s ease-in-out 0.3s infinite;}
+
+/* Folio number */
+.folio{
+  font-family: var(--display);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--ink-mute);
+  letter-spacing: 0.05em;
+}
+
+/* Ornament */
+.ornament{
+  text-align: center;
+  font-family: var(--display);
+  color: var(--accent);
+  font-size: 18px;
+  letter-spacing: 1em;
+  user-select: none;
+}

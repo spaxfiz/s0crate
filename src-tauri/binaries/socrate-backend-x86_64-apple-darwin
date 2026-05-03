@@ -1,0 +1,40 @@
+#!/bin/bash
+# Socrate backend sidecar launcher for macOS.
+
+set -euo pipefail
+
+export SOCRATE_HOST="${SOCRATE_HOST:-127.0.0.1}"
+export SOCRATE_PORT="${SOCRATE_PORT:-8421}"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+PROJECT_ROOT="${SOCRATE_PROJECT_ROOT:-}"
+if [ -z "$PROJECT_ROOT" ]; then
+  for candidate in \
+    "$PWD" \
+    "$SCRIPT_DIR/../.." \
+    "$SCRIPT_DIR/../../.." \
+    "$SCRIPT_DIR/../Resources" \
+    "$SCRIPT_DIR/../../Resources"; do
+    if [ -f "$candidate/pyproject.toml" ] && [ -d "$candidate/backend" ]; then
+      PROJECT_ROOT="$(cd "$candidate" && pwd)"
+      break
+    fi
+  done
+fi
+
+if [ -z "$PROJECT_ROOT" ] || [ ! -f "$PROJECT_ROOT/pyproject.toml" ]; then
+  echo "Error: Socrate backend project root not found. Set SOCRATE_PROJECT_ROOT." >&2
+  exit 1
+fi
+
+cd "$PROJECT_ROOT"
+
+if command -v uv >/dev/null 2>&1; then
+  exec uv run uvicorn backend.main:app --host "$SOCRATE_HOST" --port "$SOCRATE_PORT"
+elif command -v python3 >/dev/null 2>&1; then
+  exec python3 -m uvicorn backend.main:app --host "$SOCRATE_HOST" --port "$SOCRATE_PORT"
+else
+  echo "Error: Neither uv nor python3 found." >&2
+  exit 1
+fi

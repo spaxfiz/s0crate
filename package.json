@@ -1,0 +1,13 @@
+{
+  "name": "socrate",
+  "private": true,
+  "scripts": {
+    "dev": "cd src && npm run dev",
+    "tauri": "tauri",
+    "tauri:dev": "bash scripts/tauri-dev.sh",
+    "tauri:build": "bash -c 'export PATH=\"$HOME/.cargo/bin:$PATH\" && tauri build'"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.0"
+  }
+}
