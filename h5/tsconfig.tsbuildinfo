@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/bottomnav.tsx","./src/components/chatview.tsx","./src/components/drawernav.tsx","./src/components/homeview.tsx","./src/components/settings/settingsmodal.tsx","./src/lib/api.ts","./src/lib/types.ts","./src/stores/sessionstore.ts","./src/stores/settingsstore.ts"],"version":"6.0.3"}

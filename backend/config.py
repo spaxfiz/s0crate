@@ -39,6 +39,7 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = [
         "http://localhost:1420",
+        "http://localhost:1421",
         "http://localhost:5173",
         "tauri://localhost",
     ]
