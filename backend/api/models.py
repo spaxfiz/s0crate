@@ -58,6 +58,7 @@ class LearningSession(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     phase: LearningPhase = LearningPhase.QUESTIONING
+    model_tier: str = "fast"
     syllabus: Optional[SyllabusNode] = None
     current_node_id: Optional[str] = None
     context_summary: str = ""
@@ -87,6 +88,7 @@ class ReviewResult(BaseModel):
 
 class CreateSessionRequest(BaseModel):
     question: str
+    model_tier: str = "fast"
 
 
 class ChatRequest(BaseModel):
@@ -98,5 +100,6 @@ class NavigateRequest(BaseModel):
 
 
 class SaveSettingsRequest(BaseModel):
-    default_model: Optional[str] = None
+    fast_model: Optional[str] = None
+    pro_model: Optional[str] = None
     api_keys: Optional[dict[str, str]] = None

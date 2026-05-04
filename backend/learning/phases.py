@@ -16,7 +16,7 @@ from backend.memory.filesystem import FilesystemMemory
 from backend.ai.engine import AIEngine
 from backend.ai.prompts import (
     QUESTIONING_PROMPT, SYLLABUS_PROMPT, REVIEW_PROMPT,
-    DEEP_DIVE_PROMPT, SUMMARY_PROMPT,
+    DEEP_DIVE_PROMPT, SUMMARY_PROMPT, PROFILE_DISTILLATION_PROMPT,
 )
 from backend.config import Settings
 from backend.learning.compression import ContextCompressor
@@ -35,6 +35,46 @@ class PhaseOrchestrator:
     def update_settings(self, settings: Settings) -> None:
         self.settings = settings
         self.compressor.settings = settings
+
+    def _tier(self, session: LearningSession) -> str:
+        return getattr(session, "model_tier", "fast") or "fast"
+
+    def _is_metadata_complete(self, raw: str) -> bool:
+        """True once the JSON block after ---METADATA--- is fully parseable."""
+        if METADATA_SEP not in raw:
+            return False
+        meta_part = raw.split(METADATA_SEP, 1)[1].strip()
+        if not meta_part.startswith("{"):
+            return False
+        return bool(self._parse_json(meta_part))
+
+    async def _stream_with_early_done(
+        self,
+        system_prompt: str,
+        history: list[dict],
+        user_message: str,
+        max_tokens: int,
+        tier: str,
+    ) -> AsyncGenerator[dict, None]:
+        """Stream tokens to caller; stop as soon as metadata JSON is parseable.
+
+        Yields token chunks (pre-METADATA only) then a single done chunk whose
+        `content` is the fully accumulated raw response.
+        """
+        full_raw = ""
+        async for chunk in self.engine.stream_chat(
+            system_prompt, history, user_message,
+            max_tokens=max_tokens, tier=tier,
+        ):
+            if chunk["type"] == "token":
+                full_raw += chunk["content"]
+                if METADATA_SEP not in full_raw:
+                    yield {"type": "token", "content": chunk["content"]}
+                elif self._is_metadata_complete(full_raw):
+                    break  # JSON complete — no need to wait for the rest
+            elif chunk["type"] == "done":
+                break
+        yield {"type": "done", "content": full_raw}
 
     async def handle_message(
         self, session: LearningSession, user_message: str
@@ -72,7 +112,8 @@ class PhaseOrchestrator:
     ) -> AsyncGenerator[dict, None]:
         nav = Navigator(session)
         current = nav.get_current_node()
-        await self._compress_context(session, current, QUESTIONING_PROMPT, user_message, "questioning")
+        tier = self._tier(session)
+        await self._compress_context(session, current, QUESTIONING_PROMPT, user_message, "questioning", tier=tier)
         history = self._build_history(current, session)
         logger.info("questioning start session=%s history=%s", session.id, len(history))
         self._append_message(
@@ -81,23 +122,14 @@ class PhaseOrchestrator:
             ChatMessage(role="user", content=user_message, node_id=session.current_node_id),
         )
 
-        # Buffer tokens for parsing
         full_raw = ""
-        text_before_metadata = ""
-
-        async for chunk in self.engine.stream_chat(
-            QUESTIONING_PROMPT, history, user_message, max_tokens=self.settings.questioning_max_tokens
+        async for chunk in self._stream_with_early_done(
+            QUESTIONING_PROMPT, history, user_message, max_tokens=self.settings.questioning_max_tokens, tier=tier
         ):
             if chunk["type"] == "token":
-                full_raw += chunk["content"]
-                # Stream only the text portion (before ---METADATA---)
-                if METADATA_SEP not in full_raw:
-                    yield {"type": "token", "content": chunk["content"]}
-                elif not text_before_metadata:
-                    # Just crossed the separator — send only the trailing text before it
-                    text_before_metadata = full_raw.split(METADATA_SEP, 1)[0]
-                    # Don't send anything for the separator line itself
+                yield chunk
             elif chunk["type"] == "done":
+                full_raw = chunk["content"]
                 # Parse the complete response
                 content, options, action = self._split_response(full_raw)
                 msg = ChatMessage(
@@ -108,17 +140,23 @@ class PhaseOrchestrator:
                 )
                 self._append_message(current, session, msg)
 
-                if action == "generate_syllabus":
-                    logger.info("questioning action generate_syllabus session=%s", session.id)
+                should_generate = action == "generate_syllabus"
+                # Fallback: AI returned summary without ---METADATA--- separator
+                if not should_generate and not action and self._looks_like_questioning_summary(content, options, session):
+                    should_generate = True
+                    logger.warning("questioning fallback detected no metadata session=%s", session.id)
+
+                if should_generate:
+                    logger.info("questioning action generate_syllabus session=%s action=%s", session.id, action)
                     yield {"type": "phase_change", "content": "syllabus"}
                     try:
                         async for event in self._generate_syllabus(session, content):
                             yield event
                         yield {"type": "phase_change", "content": "deep_dive"}
-                    except Exception:
+                    except BaseException:
                         session.phase = LearningPhase.QUESTIONING
                         self.memory.save_session(session.slug, session.model_dump(mode="json"))
-                        logger.exception("syllabus generation failed rollback session=%s", session.id)
+                        logger.warning("syllabus generation interrupted rollback session=%s", session.id, exc_info=True)
                         raise
 
                 yield {
@@ -131,58 +169,30 @@ class PhaseOrchestrator:
     async def _generate_syllabus(
         self, session: LearningSession, context_summary: str
     ) -> AsyncGenerator[dict, None]:
+        tier = self._tier(session)
         user_context = f"用户原始问题：{session.original_question}\n\n对话总结：{context_summary}"
         messages = [{"role": "user", "content": user_context}]
         logger.info("syllabus generation start session=%s context_chars=%s", session.id, len(context_summary))
 
         # Generate
         raw = await self.engine.complete(
-            SYLLABUS_PROMPT, messages, max_tokens=self.settings.syllabus_max_tokens
+            SYLLABUS_PROMPT, messages, max_tokens=self.settings.syllabus_max_tokens, tier=tier
         )
         content, options, action = self._split_response(raw)
 
         syllabus_data = None
         if isinstance(action, dict) and action.get("type") == "syllabus_generated":
             syllabus_data = action.get("payload", {}).get("syllabus", [])
+        elif isinstance(action, str) and action == "syllabus_generated":
+            parsed = self._parse_json(raw)
+            if isinstance(parsed.get("action"), dict):
+                syllabus_data = parsed["action"].get("payload", {}).get("syllabus", [])
 
         if not syllabus_data:
             logger.error("syllabus generation missing payload session=%s raw_chars=%s", session.id, len(raw or ""))
             raise RuntimeError("大纲生成失败：AI 响应中没有有效 syllabus JSON，请重试。")
 
-        # Review loop (max 3 attempts)
-        for attempt in range(3):
-            review = await self._review_syllabus(session, syllabus_data)
-            logger.info(
-                "syllabus review session=%s attempt=%s verdict=%s score=%s issues=%s",
-                session.id,
-                attempt + 1,
-                review.verdict,
-                review.score,
-                len(review.issues),
-            )
-            if review.verdict == "pass":
-                break
-            # Re-generate with feedback
-            feedback = "\n".join(
-                f"- [{i.severity}] {i.location}: {i.suggestion}"
-                for i in review.issues
-            )
-            messages.append({"role": "assistant", "content": raw})
-            messages.append({
-                "role": "user",
-                "content": f"[审查反馈] 上一次生成的大纲有以下问题，请修正：\n{feedback}",
-            })
-            raw = await self.engine.complete(
-                SYLLABUS_PROMPT, messages, max_tokens=self.settings.syllabus_max_tokens
-            )
-            content, options, action = self._split_response(raw)
-            if isinstance(action, dict):
-                syllabus_data = action.get("payload", {}).get("syllabus", [])
-            if not syllabus_data:
-                logger.error("syllabus regeneration missing payload session=%s attempt=%s", session.id, attempt + 1)
-                raise RuntimeError("大纲重生成失败：AI 响应中没有有效 syllabus JSON，请重试。")
-
-        # Build tree
+        # Build tree first — so user gets syllabus even if review times out
         nodes = parse_syllabus_json(syllabus_data or [])
         session.syllabus = build_syllabus_tree(nodes)
         if not session.syllabus.children:
@@ -194,11 +204,11 @@ class PhaseOrchestrator:
         first.status = NodeStatus.IN_PROGRESS
         session.current_node_id = first.id
 
-        # Save MD
+        # Save MD + session immediately
         md = syllabus_to_markdown(session.syllabus, session.name)
         self.memory.save_syllabus_md(session.slug, md)
-
-        session.context_summary = context_summary
+        # Structure context_summary: mark the Q&A as user background, ready for profile distillation
+        session.context_summary = f"【背景对话】\n{context_summary}"
         session.phase = LearningPhase.DEEP_DIVE
         self.memory.save_session(session.slug, session.model_dump(mode="json"))
         logger.info(
@@ -208,20 +218,72 @@ class PhaseOrchestrator:
             len(get_all_nodes_flat(session.syllabus)),
         )
 
+        # Yield immediately — don't block on review
         yield {
             "type": "syllabus_update",
             "content": session.syllabus.model_dump(mode="json"),
         }
 
-    async def _review_syllabus(
+        # Both background tasks: review quality + distill user profile from Q&A.
+        # Neither mutates the syllabus; profile distillation only updates context_summary.
+        import asyncio
+        asyncio.create_task(self._review_generated_syllabus(session, syllabus_data))
+        asyncio.create_task(self._distill_and_update_profile(session, context_summary))
+
+    async def _review_generated_syllabus(
         self, session: LearningSession, syllabus_data: list
+    ) -> None:
+        """Background review only; never rewrite current route while user is learning."""
+        try:
+            review = await self._review_syllabus(session, syllabus_data, self._tier(session))
+            logger.info(
+                "syllabus review session=%s verdict=%s score=%s issues=%s",
+                session.id,
+                review.verdict,
+                review.score,
+                len(review.issues),
+            )
+            if review.verdict != "pass":
+                logger.warning(
+                    "syllabus review found issues session=%s summary=%s",
+                    session.id,
+                    review.summary,
+                )
+        except Exception:
+            logger.warning("syllabus review background task failed session=%s", session.id, exc_info=True)
+
+    async def _distill_and_update_profile(
+        self, session: LearningSession, raw_conversation: str
+    ) -> None:
+        """Background: distill Q&A into a concise structured user profile and replace the raw transcript."""
+        try:
+            prompt = PROFILE_DISTILLATION_PROMPT.format(conversation=raw_conversation)
+            messages = [{"role": "user", "content": raw_conversation}]
+            profile = await self.engine.complete(prompt, messages, max_tokens=256, tier=self._tier(session))
+            if profile and len(profile.strip()) > 20:
+                # Replace the raw Q&A block; preserve any progress entries already appended
+                progress_marker = "\n\n【已学进度】"
+                idx = session.context_summary.find(progress_marker)
+                progress_part = session.context_summary[idx:] if idx >= 0 else ""
+                session.context_summary = f"【用户档案】\n{profile.strip()}{progress_part}"
+                self.memory.save_session(session.slug, session.model_dump(mode="json"))
+                logger.info(
+                    "profile distillation done session=%s profile_chars=%s",
+                    session.id,
+                    len(profile.strip()),
+                )
+        except Exception:
+            logger.warning("profile distillation failed session=%s", session.id, exc_info=True)
+
+    async def _review_syllabus(
+        self, session: LearningSession, syllabus_data: list, tier: str = "fast"
     ) -> ReviewResult:
         user_context = f"用户原始问题：{session.original_question}"
         review_input = f"用户背景：{user_context}\n\n大纲JSON：\n{json.dumps(syllabus_data, ensure_ascii=False, indent=2)}"
         messages = [{"role": "user", "content": review_input}]
 
         try:
-            raw = await self.engine.complete(REVIEW_PROMPT, messages, max_tokens=self.settings.review_max_tokens)
+            raw = await self.engine.complete(REVIEW_PROMPT, messages, max_tokens=self.settings.review_max_tokens, tier=tier)
             parsed = self._parse_json(raw)
             return ReviewResult(
                 verdict=parsed.get("verdict", "pass"),
@@ -259,13 +321,14 @@ class PhaseOrchestrator:
         prompt = DEEP_DIVE_PROMPT.format(
             topic_title=current.title,
             topic_description=current.description,
+            topic_path=" > ".join(item["title"] for item in nav.get_breadcrumb()) or current.title,
             parent_context=parent_ctx,
-            user_context=session.original_question,
-            context_summary=session.context_summary,
+            user_profile=session.context_summary or session.original_question,
             node_id=current.id,
         )
 
-        await self._compress_context(session, current, prompt, user_message, f"deep_dive:{current.id}")
+        tier = self._tier(session)
+        await self._compress_context(session, current, prompt, user_message, f"deep_dive:{current.id}", tier=tier)
         history = self._build_history(current, session)
         logger.info("deep dive start session=%s node=%s history=%s", session.id, current.id, len(history))
         self._append_message(
@@ -275,16 +338,13 @@ class PhaseOrchestrator:
         )
 
         full_raw = ""
-
-        async for chunk in self.engine.stream_chat(
-            prompt, history, user_message, max_tokens=self.settings.deep_dive_max_tokens
+        async for chunk in self._stream_with_early_done(
+            prompt, history, user_message, max_tokens=self.settings.deep_dive_max_tokens, tier=tier
         ):
             if chunk["type"] == "token":
-                full_raw += chunk["content"]
-                # Stream only the text portion (before ---METADATA---)
-                if METADATA_SEP not in full_raw:
-                    yield {"type": "token", "content": chunk["content"]}
+                yield chunk
             elif chunk["type"] == "done":
+                full_raw = chunk["content"]
                 content, options, action = self._split_response(full_raw)
                 msg = ChatMessage(
                     role="assistant",
@@ -297,7 +357,7 @@ class PhaseOrchestrator:
                 if isinstance(action, dict) and action.get("type") == "topic_complete":
                     current.status = NodeStatus.COMPLETED
                     self._save_topic(session, current)
-                    session.context_summary += f"\n- {current.title}: 已学习完成"
+                    self._append_topic_progress(session, current)
                     self.memory.save_session(session.slug, session.model_dump(mode="json"))
                     logger.info("topic complete session=%s node=%s", session.id, current.id)
 
@@ -311,8 +371,9 @@ class PhaseOrchestrator:
     async def _handle_summary(
         self, session: LearningSession, user_message: str
     ) -> AsyncGenerator[dict, None]:
+        tier = self._tier(session)
         prompt = self._summary_prompt(session)
-        await self._compress_context(session, None, prompt, user_message, "summary")
+        await self._compress_context(session, None, prompt, user_message, "summary", tier=tier)
         history = self._build_history(None, session)
         logger.info("summary chat start session=%s history=%s", session.id, len(history))
         self._append_message(
@@ -321,15 +382,13 @@ class PhaseOrchestrator:
             ChatMessage(role="user", content=user_message, node_id=None),
         )
         full_raw = ""
-
-        async for chunk in self.engine.stream_chat(
-            prompt, history, user_message, max_tokens=self.settings.summary_max_tokens
+        async for chunk in self._stream_with_early_done(
+            prompt, history, user_message, max_tokens=self.settings.summary_max_tokens, tier=tier
         ):
             if chunk["type"] == "token":
-                full_raw += chunk["content"]
-                if METADATA_SEP not in full_raw:
-                    yield {"type": "token", "content": chunk["content"]}
+                yield chunk
             elif chunk["type"] == "done":
+                full_raw = chunk["content"]
                 content, options, action = self._split_response(full_raw)
                 msg = ChatMessage(
                     role="assistant",
@@ -351,25 +410,25 @@ class PhaseOrchestrator:
                 }
 
     async def generate_summary(self, session: LearningSession) -> AsyncGenerator[dict, None]:
+        tier = self._tier(session)
         session.phase = LearningPhase.SUMMARIZATION
         logger.info("summary generation start session=%s", session.id)
         yield {"type": "phase_change", "content": "summarization"}
         prompt = self._summary_prompt(session)
         summary_message = "请根据我已经完成的学习内容生成本次学习总结。"
-        await self._compress_context(session, None, prompt, summary_message, "summary_generate")
+        await self._compress_context(session, None, prompt, summary_message, "summary_generate", tier=tier)
         full_raw = ""
-
-        async for chunk in self.engine.stream_chat(
+        async for chunk in self._stream_with_early_done(
             prompt,
             self._build_history(None, session),
             summary_message,
             max_tokens=self.settings.summary_max_tokens,
+            tier=tier,
         ):
             if chunk["type"] == "token":
-                full_raw += chunk["content"]
-                if METADATA_SEP not in full_raw:
-                    yield {"type": "token", "content": chunk["content"]}
+                yield chunk
             elif chunk["type"] == "done":
+                full_raw = chunk["content"]
                 content, options, action = self._split_response(full_raw)
                 msg = ChatMessage(
                     role="assistant",
@@ -399,6 +458,7 @@ class PhaseOrchestrator:
         system_prompt: str,
         pending_user_message: str,
         scope: str,
+        tier: str = "fast",
     ) -> None:
         owner = node or session
         result = await self.compressor.compress_if_needed(
@@ -407,6 +467,7 @@ class PhaseOrchestrator:
             scope=scope,
             system_prompt=system_prompt,
             pending_user_message=pending_user_message,
+            tier=tier,
         )
         if result.compressed:
             logger.info(
@@ -423,6 +484,17 @@ class PhaseOrchestrator:
         else:
             session.conversation_history.append(msg)
         self.memory.save_session(session.slug, session.model_dump(mode="json"))
+
+    def _append_topic_progress(self, session: LearningSession, node: SyllabusNode) -> None:
+        """Append a richer topic completion note to context_summary for cross-topic continuity."""
+        if "\n\n【已学进度】" not in session.context_summary:
+            session.context_summary += "\n\n【已学进度】"
+        desc_snippet = node.description[:60].rstrip() if node.description else ""
+        entry = f"\n- {node.title}"
+        if desc_snippet:
+            entry += f"（{desc_snippet}）"
+        entry += "：已完成"
+        session.context_summary += entry
 
     def _save_topic(self, session: LearningSession, node: SyllabusNode):
         content_parts = [f"# {node.title}\n"]
@@ -447,6 +519,24 @@ class PhaseOrchestrator:
             topics_covered="\n".join(covered) or "暂无已完成节点，请基于当前会话内容总结。",
             history_highlights=session.context_summary or "暂无额外摘要。",
         )
+
+    _SUMMARY_SIGNALS = ("我理解了", "我已经了解", "接下来", "为你量身", "为你制定", "为你生成", "学习路径", "学习计划", "学习大纲")
+
+    def _looks_like_questioning_summary(
+        self, content: str, options: list[dict], session: LearningSession
+    ) -> bool:
+        """Detect AI summary without ---METADATA--- (model omitted structured output)."""
+        # Need at least 2 rounds of Q&A (4 messages: user+assistant pairs)
+        user_msg_count = sum(1 for m in session.conversation_history if m.role == "user")
+        if user_msg_count < 2:
+            return False
+        # Structural signals: no options provided AND no follow-up question
+        no_options = len(options) == 0
+        no_question = "？" not in content and "?" not in content
+        if no_options and no_question:
+            return True
+        # Keyword fallback
+        return any(signal in content for signal in self._SUMMARY_SIGNALS)
 
     def _questioning_summary(self, session: LearningSession, latest_user_message: str) -> str:
         lines = []

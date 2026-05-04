@@ -46,12 +46,28 @@ def _get_provider_from_model(model: str) -> str | None:
 
 
 class AIEngine:
-    def __init__(self, model: str = "anthropic/claude-sonnet-4-20250514", api_keys: dict | None = None):
-        self.model = model
+    def __init__(
+        self,
+        fast_model: str = "anthropic/claude-sonnet-4-20250514",
+        pro_model: str = "",
+        api_keys: dict | None = None,
+        # backward-compat alias
+        model: str | None = None,
+    ):
+        self.fast_model = model or fast_model
+        self.pro_model = pro_model or self.fast_model
         self.api_keys = api_keys or {}
 
+    @property
+    def model(self) -> str:
+        return self.fast_model
+
+    def get_model(self, tier: str = "fast") -> str:
+        if tier == "pro":
+            return self.pro_model
+        return self.fast_model
+
     def _get_api_key_for_model(self, model: str) -> str | None:
-        """Get the API key for the given model's provider."""
         provider = _get_provider_from_model(model)
         if provider and provider in self.api_keys:
             return self.api_keys[provider]
@@ -70,9 +86,22 @@ class AIEngine:
             raise RuntimeError(f"当前模型 {model} 缺少 {provider} API Key，请先在设置中配置")
         return api_key
 
-    def update(self, model: str | None = None, api_keys: dict | None = None):
+    def update(
+        self,
+        fast_model: str | None = None,
+        pro_model: str | None = None,
+        api_keys: dict | None = None,
+        # backward-compat alias
+        model: str | None = None,
+    ):
         if model:
-            self.model = model
+            self.fast_model = model
+        if fast_model:
+            self.fast_model = fast_model
+        if pro_model:
+            self.pro_model = pro_model
+        elif fast_model:
+            self.pro_model = fast_model
         if api_keys is not None:
             self.api_keys = api_keys
 
@@ -83,21 +112,24 @@ class AIEngine:
         user_message: str,
         temperature: float = 0,
         max_tokens: int = 4096,
+        tier: str = "fast",
     ) -> AsyncGenerator[dict, None]:
+        model = self.get_model(tier)
         messages = [{"role": "system", "content": system_prompt}]
         messages.extend(history)
         messages.append({"role": "user", "content": user_message})
 
-        api_key = self._validate_model_key(self.model)
+        api_key = self._validate_model_key(model)
         logger.info(
-            "ai stream start model=%s history_messages=%s max_tokens=%s user_chars=%s",
-            self.model,
+            "ai stream start model=%s tier=%s history_messages=%s max_tokens=%s user_chars=%s",
+            model,
+            tier,
             len(history),
             max_tokens,
             len(user_message),
         )
         kwargs = dict(
-            model=self.model,
+            model=model,
             messages=messages,
             stream=True,
             temperature=temperature,
@@ -109,7 +141,7 @@ class AIEngine:
         try:
             response = await litellm.acompletion(**kwargs)
         except Exception:
-            logger.exception("ai stream request failed model=%s max_tokens=%s", self.model, max_tokens)
+            logger.exception("ai stream request failed model=%s max_tokens=%s", model, max_tokens)
             raise
 
         full_content = ""
@@ -118,7 +150,7 @@ class AIEngine:
             full_content += delta
             yield {"type": "token", "content": delta}
 
-        logger.info("ai stream done model=%s output_chars=%s", self.model, len(full_content))
+        logger.info("ai stream done model=%s output_chars=%s", model, len(full_content))
         yield {"type": "done", "content": full_content}
 
     async def complete(
@@ -127,17 +159,20 @@ class AIEngine:
         messages: list[dict],
         temperature: float = 0,
         max_tokens: int = 4096,
+        tier: str = "fast",
     ) -> str:
+        model = self.get_model(tier)
         full_messages = [{"role": "system", "content": system_prompt}] + messages
-        api_key = self._validate_model_key(self.model)
+        api_key = self._validate_model_key(model)
         logger.info(
-            "ai complete start model=%s messages=%s max_tokens=%s",
-            self.model,
+            "ai complete start model=%s tier=%s messages=%s max_tokens=%s",
+            model,
+            tier,
             len(messages),
             max_tokens,
         )
         kwargs = dict(
-            model=self.model,
+            model=model,
             messages=full_messages,
             stream=False,
             temperature=temperature,
@@ -149,8 +184,8 @@ class AIEngine:
         try:
             response = await litellm.acompletion(**kwargs)
         except Exception:
-            logger.exception("ai complete request failed model=%s max_tokens=%s", self.model, max_tokens)
+            logger.exception("ai complete request failed model=%s max_tokens=%s", model, max_tokens)
             raise
         content = response.choices[0].message.content
-        logger.info("ai complete done model=%s output_chars=%s", self.model, len(content or ""))
+        logger.info("ai complete done model=%s output_chars=%s", model, len(content or ""))
         return content

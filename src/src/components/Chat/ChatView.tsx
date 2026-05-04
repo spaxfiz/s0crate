@@ -88,6 +88,10 @@ export function ChatView() {
     return null
   }
   const currentNode = current?.syllabus ? findNode(current.syllabus.children || [], currentNodeId || '') : null
+  const isEmptyLeafNode = phase === 'deep_dive'
+    && !!currentNode
+    && (!currentNode.children || currentNode.children.length === 0)
+    && messages.length === 0
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -221,6 +225,40 @@ export function ChatView() {
           {/* Messages */}
           {messages.map((m, i) => <Message key={i} message={m} index={i} />)}
 
+          {isEmptyLeafNode && !isStreaming && (
+            <div style={{
+              margin: '28px auto 0',
+              padding: '22px 24px',
+              borderTop: '1px solid var(--rule-soft)',
+              borderBottom: '1px solid var(--rule-soft)',
+              textAlign: 'center',
+            }}>
+              <div style={{
+                fontFamily: 'var(--serif)',
+                fontSize: 16,
+                lineHeight: 1.7,
+                color: 'var(--ink-soft)',
+                marginBottom: 16,
+              }}>
+                本节还没有学习内容。
+              </div>
+              <button onClick={() => send('开始学习本节')} style={{
+                fontFamily: 'var(--sans)',
+                fontWeight: 600,
+                fontSize: 13,
+                letterSpacing: '0.08em',
+                padding: '9px 18px',
+                borderRadius: 999,
+                border: '1px solid var(--accent-deep)',
+                background: 'var(--accent-deep)',
+                color: 'var(--paper)',
+                cursor: 'pointer',
+              }}>
+                开始学习
+              </button>
+            </div>
+          )}
+
           {/* Streaming */}
           {isStreaming && (
             <div style={{ marginTop: 28 }}>
@@ -278,7 +316,7 @@ export function ChatView() {
       </div>
 
       {/* Quick actions (deep_dive) */}
-      {phase === 'deep_dive' && !isStreaming && (
+      {phase === 'deep_dive' && !isStreaming && !isEmptyLeafNode && (
         <div style={{ padding: '0 56px', borderTop: '1px solid var(--rule-soft)', display: 'flex', gap: 8, paddingTop: 10, paddingBottom: 4, flexWrap: 'wrap' }}>
           {quickActions.map((b, i) => (
             <button key={i} onClick={() => send(b.v)} style={{

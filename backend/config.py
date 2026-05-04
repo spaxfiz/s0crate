@@ -13,6 +13,8 @@ ENV_PATH = BACKEND_DIR / ".env"
 
 class Settings(BaseSettings):
     default_model: str = "deepseek/deepseek-v4-pro"
+    fast_model: str = ""
+    pro_model: str = ""
     api_keys: dict[str, str] = Field(default_factory=dict)
 
     host: str = "127.0.0.1"
@@ -27,13 +29,13 @@ class Settings(BaseSettings):
     context_window_tokens: int = 1_000_000
     compression_threshold_ratio: float = 0.8
     compression_recent_messages: int = 12
-    compression_max_tokens: int = 65_536
+    compression_max_tokens: int = 262_144
 
-    questioning_max_tokens: int = 8_192
-    syllabus_max_tokens: int = 65_536
-    review_max_tokens: int = 16_384
-    deep_dive_max_tokens: int = 32_768
-    summary_max_tokens: int = 65_536
+    questioning_max_tokens: int = 32_768
+    syllabus_max_tokens: int = 262_144
+    review_max_tokens: int = 65_536
+    deep_dive_max_tokens: int = 131_072
+    summary_max_tokens: int = 262_144
 
     cors_origins: list[str] = [
         "http://localhost:1420",
@@ -60,10 +62,19 @@ class Settings(BaseSettings):
         return {}
 
 
-def save_settings_env(default_model: str | None, api_keys: dict[str, str] | None) -> None:
+def save_settings_env(
+    fast_model: str | None,
+    pro_model: str | None,
+    api_keys: dict[str, str] | None,
+    default_model: str | None = None,
+) -> None:
     values = _read_env_file(ENV_PATH)
     if default_model:
         values["SOCRATE_DEFAULT_MODEL"] = default_model
+    if fast_model is not None:
+        values["SOCRATE_FAST_MODEL"] = fast_model
+    if pro_model is not None:
+        values["SOCRATE_PRO_MODEL"] = pro_model
     if api_keys is not None:
         merged = Settings().api_keys.copy()
         for provider, key in api_keys.items():

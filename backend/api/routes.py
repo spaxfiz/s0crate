@@ -44,8 +44,11 @@ async def health():
 
 @router.post("/sessions")
 async def create_session(req: CreateSessionRequest):
-    session = sessions.create(req.question)
-    logger.info("session created session=%s slug=%s question_chars=%s", session.id, session.slug, len(req.question))
+    session = sessions.create(req.question, model_tier=req.model_tier)
+    logger.info(
+        "session created session=%s slug=%s question_chars=%s tier=%s",
+        session.id, session.slug, len(req.question), req.model_tier,
+    )
     return _session_response(session)
 
 
@@ -63,7 +66,6 @@ async def start_session(session_id: str):
             async for chunk in orchestrator.handle_initial_question(session):
                 event_type = chunk.get("type", "token")
                 yield f"event: {event_type}\ndata: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-            sessions.save(session)
             logger.info("sse done initial session=%s phase=%s", session.id, session.phase.value)
         except asyncio.CancelledError:
             logger.info("sse cancelled initial session=%s", session.id)
@@ -71,6 +73,8 @@ async def start_session(session_id: str):
         except Exception as e:
             logger.exception("sse error initial session=%s", session.id)
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            sessions.save(session)
 
     return StreamingResponse(
         event_stream(),
@@ -137,10 +141,13 @@ async def navigate(session_id: str, req: NavigateRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
 
+    if node.id != "root":
+        session.phase = LearningPhase.DEEP_DIVE
     sessions.save(session)
-    logger.info("navigate session=%s node=%s", session.id, req.node_id)
+    logger.info("navigate session=%s node=%s phase=%s", session.id, req.node_id, session.phase.value)
     return {
         "currentNodeId": session.current_node_id,
+        "phase": session.phase.value,
         "breadcrumb": nav.get_breadcrumb(),
         "messages": [m.model_dump(mode="json") for m in node.conversation_history],
         "hasNext": Navigator(session).has_next(),
@@ -156,12 +163,15 @@ async def navigate_back(session_id: str):
 
     nav = Navigator(session)
     parent = nav.navigate_back()
+    if parent:
+        session.phase = LearningPhase.DEEP_DIVE
     sessions.save(session)
 
     current = nav.get_current_node()
-    logger.info("navigate back session=%s current=%s", session.id, session.current_node_id)
+    logger.info("navigate back session=%s current=%s phase=%s", session.id, session.current_node_id, session.phase.value)
     return {
         "currentNodeId": session.current_node_id,
+        "phase": session.phase.value,
         "breadcrumb": nav.get_breadcrumb(),
         "messages": [m.model_dump(mode="json") for m in current.conversation_history] if current else [],
         "hasNext": nav.has_next(),
@@ -182,6 +192,7 @@ async def navigate_overview(session_id: str):
 
     return {
         "currentNodeId": session.current_node_id,
+        "phase": session.phase.value,
         "breadcrumb": nav.get_breadcrumb(),
         "messages": [m.model_dump(mode="json") for m in session.conversation_history],
         "hasNext": nav.has_next(),
@@ -197,11 +208,20 @@ async def navigate_next(session_id: str):
 
     nav = Navigator(session)
     node = nav.navigate_next()
+    if node:
+        session.phase = LearningPhase.DEEP_DIVE
     sessions.save(session)
     current = nav.get_current_node()
-    logger.info("navigate next session=%s current=%s has_next_node=%s", session.id, session.current_node_id, node is not None)
+    logger.info(
+        "navigate next session=%s current=%s has_next_node=%s phase=%s",
+        session.id,
+        session.current_node_id,
+        node is not None,
+        session.phase.value,
+    )
     return {
         "currentNodeId": session.current_node_id,
+        "phase": session.phase.value,
         "breadcrumb": nav.get_breadcrumb(),
         "messages": [m.model_dump(mode="json") for m in current.conversation_history] if current else [],
         "hasNext": node is not None and nav.has_next(),
@@ -239,7 +259,6 @@ async def chat(session_id: str, req: ChatRequest):
             async for chunk in orchestrator.handle_message(session, req.message):
                 event_type = chunk.get("type", "token")
                 yield f"event: {event_type}\ndata: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-            sessions.save(session)
             logger.info("sse done chat session=%s phase=%s", session.id, session.phase.value)
         except asyncio.CancelledError:
             logger.info("sse cancelled chat session=%s", session.id)
@@ -247,6 +266,8 @@ async def chat(session_id: str, req: ChatRequest):
         except Exception as e:
             logger.exception("sse error chat session=%s", session.id)
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            sessions.save(session)
 
     return StreamingResponse(
         event_stream(),
@@ -272,7 +293,6 @@ async def create_summary(session_id: str):
             async for chunk in orchestrator.generate_summary(session):
                 event_type = chunk.get("type", "token")
                 yield f"event: {event_type}\ndata: {json.dumps(chunk, ensure_ascii=False)}\n\n"
-            sessions.save(session)
             logger.info("sse done summary session=%s", session.id)
         except asyncio.CancelledError:
             logger.info("sse cancelled summary session=%s", session.id)
@@ -280,6 +300,8 @@ async def create_summary(session_id: str):
         except Exception as e:
             logger.exception("sse error summary session=%s", session.id)
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
+        finally:
+            sessions.save(session)
 
     return StreamingResponse(
         event_stream(),
@@ -297,20 +319,26 @@ async def create_summary(session_id: str):
 @router.get("/settings")
 async def get_settings():
     return {
-        "defaultModel": engine.model,
+        "fastModel": engine.fast_model,
+        "proModel": engine.pro_model,
         "apiKeys": {k: bool(v) for k, v in engine.api_keys.items()},
     }
 
 
 @router.post("/settings")
 async def save_settings(req: SaveSettingsRequest):
-    save_settings_env(req.default_model, req.api_keys)
+    save_settings_env(fast_model=req.fast_model, pro_model=req.pro_model, api_keys=req.api_keys)
     settings = Settings()
-    engine.update(model=settings.default_model, api_keys=settings.api_keys)
+    engine.update(
+        fast_model=settings.fast_model or settings.default_model,
+        pro_model=settings.pro_model or settings.default_model,
+        api_keys=settings.api_keys,
+    )
     orchestrator.update_settings(settings)
     logger.info(
-        "settings saved model=%s providers=%s",
-        settings.default_model,
+        "settings saved fast_model=%s pro_model=%s providers=%s",
+        engine.fast_model,
+        engine.pro_model,
         sorted(settings.api_keys.keys()),
     )
     return {"ok": True}
@@ -338,6 +366,7 @@ def _session_response(session):
         "createdAt": session.created_at.isoformat(),
         "updatedAt": session.updated_at.isoformat(),
         "phase": session.phase.value,
+        "modelTier": session.model_tier,
         "syllabus": syllabus_data,
         "currentNodeId": session.current_node_id,
         "contextSummary": session.context_summary,

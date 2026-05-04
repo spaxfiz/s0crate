@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 
 export function HomeView({ onStartSession, onOpenSession }: {
-  onStartSession: (question: string) => void
+  onStartSession: (question: string, tier: 'fast' | 'pro') => void
   onOpenSession: (id: string) => void
 }) {
   const { sessions, deleteSession } = useSessionStore()
   const [question, setQuestion] = useState('')
+  const [tier, setTier] = useState<'fast' | 'pro'>('fast')
 
   const suggestions = ['经济学基础', 'Rust 编程', '量子力学直觉', '存在主义哲学']
 
   const handleStart = () => {
-    if (question.trim()) onStartSession(question.trim())
+    if (question.trim()) onStartSession(question.trim(), tier)
   }
 
   return (
@@ -62,10 +63,29 @@ export function HomeView({ onStartSession, onOpenSession }: {
                 }}>{s}</button>
               ))}
             </div>
-            <button onClick={handleStart} style={{
-              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12.5, padding: '7px 14px',
-              borderRadius: 999, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)', cursor: 'pointer',
-            }}>Begin →</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Fast / Pro tier toggle */}
+              <div style={{
+                display: 'flex', borderRadius: 999, border: '1px solid var(--rule)',
+                overflow: 'hidden', fontFamily: 'var(--sans)', fontSize: 11.5,
+              }}>
+                {(['fast', 'pro'] as const).map(t => (
+                  <button key={t} onClick={() => setTier(t)} style={{
+                    padding: '5px 12px', border: 'none', cursor: 'pointer',
+                    background: tier === t ? 'var(--ink)' : 'transparent',
+                    color: tier === t ? 'var(--paper)' : 'var(--ink-mute)',
+                    fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 11.5,
+                    letterSpacing: '0.04em',
+                  }}>
+                    {t === 'fast' ? '⚡ Fast' : '✦ Pro'}
+                  </button>
+                ))}
+              </div>
+              <button onClick={handleStart} style={{
+                fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12.5, padding: '7px 14px',
+                borderRadius: 999, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)', cursor: 'pointer',
+              }}>Begin →</button>
+            </div>
           </div>
         </div>
 

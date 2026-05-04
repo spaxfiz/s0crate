@@ -46,8 +46,8 @@ export default function App() {
     setView('home')
   }
 
-  const handleStartSession = async (question: string) => {
-    await createSession(question)
+  const handleStartSession = async (question: string, tier: 'fast' | 'pro' = 'fast') => {
+    await createSession(question, tier)
     setView('chat')
   }
 

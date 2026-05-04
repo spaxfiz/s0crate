@@ -36,6 +36,7 @@ export interface LearningSession {
   createdAt: string
   updatedAt: string
   phase: LearningPhase
+  modelTier: 'fast' | 'pro'
   syllabus: SyllabusNode | null
   currentNodeId: string | null
   contextSummary: string
@@ -107,18 +108,21 @@ export type SSEChunk =
 
 export interface NavigationResponse {
   currentNodeId: string | null
+  phase: LearningPhase
   breadcrumb: { id: string; title: string }[]
   messages: ChatMessage[]
   hasNext?: boolean
 }
 
 export interface SettingsResponse {
-  defaultModel: string
+  fastModel: string
+  proModel: string
   apiKeys: Record<string, boolean>
 }
 
 export interface SaveSettingsPayload {
-  default_model?: string
+  fast_model?: string
+  pro_model?: string
   api_keys?: Record<string, string>
 }
 

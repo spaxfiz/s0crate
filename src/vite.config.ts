@@ -8,7 +8,11 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
     proxy: {
-      '/api': 'http://localhost:8421',
+      '/api': {
+        target: 'http://localhost:8421',
+        timeout: 300_000,
+        proxyTimeout: 300_000,
+      },
     },
   },
 })

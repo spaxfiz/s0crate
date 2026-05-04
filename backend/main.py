@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 import time
 import uvicorn
-from fastapi import Request
+from starlette.types import ASGIApp, Receive, Scope, Send
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,15 +15,56 @@ from backend.learning.phases import PhaseOrchestrator
 from backend.api.routes import router as api_router, init_routes
 
 
+class RequestLoggingMiddleware:
+    """Raw ASGI middleware — avoids BaseHTTPMiddleware task-group cancellation bug."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        self.logger = logging.getLogger("backend.request")
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        start = time.perf_counter()
+        method = scope.get("method", "?")
+        path = scope.get("path", "?")
+        status_code = 0
+
+        async def send_wrapper(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 0)
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            self.logger.exception(
+                "request failed method=%s path=%s elapsed_ms=%.1f",
+                method, path, elapsed_ms,
+            )
+            raise
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        self.logger.info(
+            "request method=%s path=%s status=%s elapsed_ms=%.1f",
+            method, path, status_code, elapsed_ms,
+        )
+
+
 def create_app() -> FastAPI:
     settings = Settings()
     configure_logging(settings)
     logger = logging.getLogger(__name__)
+    fast_model = settings.fast_model or settings.default_model
+    pro_model = settings.pro_model or fast_model
     logger.info(
-        "starting app host=%s port=%s model=%s output_dir=%s log_dir=%s context_window_tokens=%s compression_threshold_ratio=%s",
+        "starting app host=%s port=%s fast_model=%s pro_model=%s output_dir=%s log_dir=%s context_window_tokens=%s compression_threshold_ratio=%s",
         settings.host,
         settings.port,
-        settings.default_model,
+        fast_model,
+        pro_model,
         settings.output_dir,
         settings.log_dir,
         settings.context_window_tokens,
@@ -33,7 +74,8 @@ def create_app() -> FastAPI:
     # Initialize components
     memory = FilesystemMemory(settings.output_dir)
     engine = AIEngine(
-        model=settings.default_model,
+        fast_model=fast_model,
+        pro_model=pro_model,
         api_keys=settings.api_keys,
     )
     session_mgr = SessionManager(memory)
@@ -44,30 +86,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Socrate", version="0.1.0")
 
-    @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        start = time.perf_counter()
-        try:
-            response = await call_next(request)
-        except Exception:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            logging.getLogger("backend.request").exception(
-                "request failed method=%s path=%s elapsed_ms=%.1f",
-                request.method,
-                request.url.path,
-                elapsed_ms,
-            )
-            raise
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logging.getLogger("backend.request").info(
-            "request method=%s path=%s status=%s elapsed_ms=%.1f",
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
-        )
-        return response
-
+    app.add_middleware(RequestLoggingMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

@@ -190,9 +190,7 @@ const PROVIDERS: Provider[] = [
 export function SettingsModal() {
   const { settings, editingKeys, close, save, setEditingKey } = useSettingsStore()
   const [selectedProvider, setSelectedProvider] = useState(() => {
-    // Find which provider the current default model belongs to
-    const currentModel = settings.defaultModel
-    const match = PROVIDERS.find(p => currentModel.startsWith(p.id + '/'))
+    const match = PROVIDERS.find(p => settings.fastModel.startsWith(p.id + '/'))
     return match?.id || 'anthropic'
   })
   const [saving, setSaving] = useState(false)
@@ -214,24 +212,14 @@ export function SettingsModal() {
   const handleSaveKey = async () => {
     setSaving(true)
     try {
-      // Build api_keys dict with only the changed provider
       const keysToSave: Record<string, string> = {}
       if (currentEditingKey) {
         keysToSave[selectedProvider] = currentEditingKey
       }
-      // Preserve existing keys from other providers
-      const allKeys: Record<string, string> = {}
-      for (const [k, v] of Object.entries(settings.apiKeys)) {
-        if (v) allKeys[k] = ''  // We don't have the actual value, just the flag
-      }
-      await save({ apiKeys: { ...allKeys, ...keysToSave } })
+      await save({ apiKeys: keysToSave })
     } finally {
       setSaving(false)
     }
-  }
-
-  const handleModelChange = (modelId: string) => {
-    save({ defaultModel: modelId })
   }
 
   const handleSaveAll = async () => {
@@ -241,10 +229,7 @@ export function SettingsModal() {
       for (const [k, v] of Object.entries(editingKeys)) {
         if (v) keysToSave[k] = v
       }
-      await save({
-        defaultModel: settings.defaultModel,
-        apiKeys: keysToSave,
-      })
+      await save({ apiKeys: keysToSave })
     } finally {
       setSaving(false)
     }
@@ -354,44 +339,68 @@ export function SettingsModal() {
               )}
             </div>
 
-            {/* Model selector */}
+            {/* Fast Model selector */}
             <div style={{ marginTop: 16 }}>
               <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
-                Default Model · 默认模型
+                ⚡ Fast Model · 快速模型
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
                 {selectedProviderData.models.map(m => (
-                  <button key={m.id} onClick={() => handleModelChange(m.id)} style={{
-                    padding: '8px 12px', textAlign: 'left',
-                    border: '1px solid', borderColor: settings.defaultModel === m.id ? 'var(--accent)' : 'var(--rule-soft)',
-                    background: settings.defaultModel === m.id ? 'rgba(139,111,71,0.1)' : 'var(--paper)',
+                  <button key={m.id} onClick={() => save({ fastModel: m.id })} style={{
+                    padding: '7px 12px', textAlign: 'left',
+                    border: '1px solid', borderColor: settings.fastModel === m.id ? 'var(--accent)' : 'var(--rule-soft)',
+                    background: settings.fastModel === m.id ? 'rgba(139,111,71,0.1)' : 'var(--paper)',
                     fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)',
                     cursor: 'pointer', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
                     <span>{m.label}</span>
-                    <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-mute)' }}>{m.id}</span>
+                    {settings.fastModel === m.id && <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--accent-deep)' }}>✓</span>}
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Custom model input */}
-            <div style={{ marginTop: 12 }}>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
-                Custom Model · 自定义模型
-              </div>
               <input
-                value={settings.defaultModel}
-                onChange={e => handleModelChange(e.target.value)}
+                value={settings.fastModel}
+                onChange={e => save({ fastModel: e.target.value })}
                 placeholder="provider/model-name"
                 style={{
-                  width: '100%', padding: '8px 10px', border: '1px solid var(--rule)',
+                  width: '100%', padding: '7px 10px', border: '1px solid var(--rule)',
                   background: 'var(--paper-deep)', borderRadius: 3,
-                  fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)', outline: 'none',
+                  fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink)', outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Pro Model selector */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+                ✦ Pro Model · 专业模型
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                {selectedProviderData.models.map(m => (
+                  <button key={m.id} onClick={() => save({ proModel: m.id })} style={{
+                    padding: '7px 12px', textAlign: 'left',
+                    border: '1px solid', borderColor: settings.proModel === m.id ? 'var(--accent)' : 'var(--rule-soft)',
+                    background: settings.proModel === m.id ? 'rgba(139,111,71,0.1)' : 'var(--paper)',
+                    fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)',
+                    cursor: 'pointer', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <span>{m.label}</span>
+                    {settings.proModel === m.id && <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--accent-deep)' }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+              <input
+                value={settings.proModel}
+                onChange={e => save({ proModel: e.target.value })}
+                placeholder="provider/model-name"
+                style={{
+                  width: '100%', padding: '7px 10px', border: '1px solid var(--rule)',
+                  background: 'var(--paper-deep)', borderRadius: 3,
+                  fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink)', outline: 'none',
                 }}
               />
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-mute)', marginTop: 4 }}>
-                LiteLLM format: provider/model-name (e.g., openai/gpt-4o, deepseek/deepseek-chat)
+                LiteLLM format: provider/model-name
               </div>
             </div>
           </div>

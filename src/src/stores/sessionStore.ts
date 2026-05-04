@@ -18,7 +18,7 @@ interface SessionState {
   abortController: AbortController | null
 
   loadSessions: () => Promise<void>
-  createSession: (question: string) => Promise<LearningSession>
+  createSession: (question: string, modelTier?: 'fast' | 'pro') => Promise<LearningSession>
   loadSession: (id: string) => Promise<void>
   deleteSession: (id: string) => Promise<void>
   sendMessage: (message: string) => Promise<void>
@@ -113,8 +113,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     set({ sessions })
   },
 
-  createSession: async (question: string) => {
-    const session = await api.createSession(question)
+  createSession: async (question: string, modelTier: 'fast' | 'pro' = 'fast') => {
+    const session = await api.createSession(question, modelTier)
     set({ current: session, errorMessage: null, noticeMessage: null })
     void get().loadSessions()
     void get().startSession()
@@ -172,6 +172,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     } finally {
       set({ isStreaming: false, streamContent: '', abortController: null })
+      try {
+        await refreshCurrent(set, get().current)
+        set({ errorMessage: null })
+      } catch { /* best effort */ }
     }
   },
 
@@ -231,6 +235,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     } finally {
       set({ isStreaming: false, streamContent: '', abortController: null })
+      try {
+        await refreshCurrent(set, get().current)
+        set({ errorMessage: null })
+      } catch { /* best effort */ }
     }
   },
 
@@ -271,6 +279,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       }
     } finally {
       set({ isStreaming: false, streamContent: '', abortController: null })
+      try {
+        await refreshCurrent(set, get().current)
+        set({ errorMessage: null })
+      } catch { /* best effort */ }
     }
   },
 
@@ -282,6 +294,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       current: {
         ...current,
         currentNodeId: result.currentNodeId,
+        phase: result.phase,
         breadcrumb: result.breadcrumb,
         messages: result.messages,
       },
@@ -298,6 +311,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       current: {
         ...current,
         currentNodeId: result.currentNodeId,
+        phase: result.phase,
         breadcrumb: result.breadcrumb,
         messages: result.messages,
       },
@@ -312,6 +326,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       current: {
         ...current,
         currentNodeId: result.currentNodeId,
+        phase: result.phase,
         breadcrumb: result.breadcrumb,
         messages: result.messages,
       },
@@ -326,6 +341,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       current: {
         ...current,
         currentNodeId: result.currentNodeId,
+        phase: result.phase,
         breadcrumb: result.breadcrumb,
         messages: result.messages,
       },

@@ -38,10 +38,10 @@ export const api = {
   health: () => request<{ status: string }>('/health'),
 
   // Sessions
-  createSession: (question: string) =>
+  createSession: (question: string, modelTier: 'fast' | 'pro' = 'fast') =>
     request<LearningSession>('/sessions', {
       method: 'POST',
-      body: JSON.stringify({ question }),
+      body: JSON.stringify({ question, model_tier: modelTier }),
     }),
 
   listSessions: () => request<SessionSummary[]>('/sessions'),

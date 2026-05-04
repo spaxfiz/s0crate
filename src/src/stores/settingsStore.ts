@@ -2,7 +2,8 @@ import { create } from 'zustand'
 import { api } from '../lib/api'
 
 interface Settings {
-  defaultModel: string
+  fastModel: string
+  proModel: string
   apiKeys: Record<string, boolean>  // provider -> hasKey (masked from backend)
 }
 
@@ -13,13 +14,17 @@ interface SettingsState {
   open: () => void
   close: () => void
   load: () => Promise<void>
-  save: (partial: { defaultModel?: string; apiKeys?: Record<string, string> }) => Promise<void>
+  save: (partial: { fastModel?: string; proModel?: string; apiKeys?: Record<string, string> }) => Promise<void>
   setEditingKey: (provider: string, key: string) => void
 }
 
+const DEFAULT_FAST = 'anthropic/claude-haiku-4-20250414'
+const DEFAULT_PRO = 'anthropic/claude-sonnet-4-20250514'
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: {
-    defaultModel: 'anthropic/claude-sonnet-4-20250514',
+    fastModel: DEFAULT_FAST,
+    proModel: DEFAULT_PRO,
     apiKeys: {},
   },
   editingKeys: {},
@@ -31,7 +36,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const data = await api.getSettings()
       set({
         settings: {
-          defaultModel: data.defaultModel || 'anthropic/claude-sonnet-4-20250514',
+          fastModel: data.fastModel || DEFAULT_FAST,
+          proModel: data.proModel || DEFAULT_PRO,
           apiKeys: data.apiKeys || {},
         },
       })
@@ -41,13 +47,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
   save: async (partial) => {
     const current = get().settings
-    const newSettings = {
-      ...current,
-      ...partial,
-    }
-    set({ settings: { ...newSettings, apiKeys: partial.apiKeys ? {} : current.apiKeys } })
+    set({
+      settings: {
+        fastModel: partial.fastModel ?? current.fastModel,
+        proModel: partial.proModel ?? current.proModel,
+        apiKeys: partial.apiKeys ? current.apiKeys : current.apiKeys,
+      },
+    })
     await api.saveSettings({
-      default_model: partial.defaultModel || current.defaultModel,
+      fast_model: partial.fastModel,
+      pro_model: partial.proModel,
       api_keys: partial.apiKeys || undefined,
     })
     // Reload to get masked key status

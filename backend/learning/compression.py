@@ -46,6 +46,7 @@ class ContextCompressor:
         scope: str,
         system_prompt: str,
         pending_user_message: str,
+        tier: str = "fast",
     ) -> CompressionResult:
         threshold = int(self.settings.context_window_tokens * self.settings.compression_threshold_ratio)
         current_tokens = self.estimate_context_tokens(owner, system_prompt, pending_user_message)
@@ -82,6 +83,7 @@ class ContextCompressor:
             CAVEMAN_COMPRESS_PROMPT,
             [{"role": "user", "content": f"TEXT:\n{payload}"}],
             max_tokens=self.settings.compression_max_tokens,
+            tier=tier,
         )
         compressed = compressed.strip()
         if not compressed:

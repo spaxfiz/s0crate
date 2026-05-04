@@ -14,7 +14,7 @@ class SessionManager:
         self.memory = memory
         self._cache: dict[str, LearningSession] = {}
 
-    def create(self, question: str) -> LearningSession:
+    def create(self, question: str, model_tier: str = "fast") -> LearningSession:
         session_id = str(uuid.uuid4())[:8]
         name = question[:30].strip()
         session = LearningSession(
@@ -23,6 +23,7 @@ class SessionManager:
             slug=slugify(name) or session_id,
             original_question=question,
             phase=LearningPhase.QUESTIONING,
+            model_tier=model_tier,
         )
         self._cache[session.id] = session
         self._save(session)
