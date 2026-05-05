@@ -1,31 +1,55 @@
-# Socrate
+# Socrate — AI-Powered Learning Workspace
 
 <p>
-  <img alt="License" src="https://img.shields.io/badge/license-MIT-2f6f5e">
-  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS-111827">
-  <img alt="Desktop" src="https://img.shields.io/badge/desktop-Tauri%20v2-24c8db">
-  <img alt="Backend" src="https://img.shields.io/badge/backend-FastAPI-009688">
-  <img alt="Frontend" src="https://img.shields.io/badge/frontend-React%20%2B%20Vite-646cff">
-  <img alt="AI" src="https://img.shields.io/badge/AI-LiteLLM-f97316">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-2f6f5e">
+  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-111827">
+  <img alt="Desktop: Tauri v2" src="https://img.shields.io/badge/desktop-Tauri%20v2-24c8db">
+  <img alt="Backend: FastAPI" src="https://img.shields.io/badge/backend-FastAPI-009688">
+  <img alt="Frontend: React + Vite" src="https://img.shields.io/badge/frontend-React%20%2B%20Vite-646cff">
+  <img alt="AI: LiteLLM" src="https://img.shields.io/badge/AI-LiteLLM-f97316">
 </p>
 
-<p>
-  <strong>AI-native learning workspace.</strong>
-  从一个问题开始，生成一张学习地图，并把每一步沉淀成可复用的本地知识资产。
-</p>
+**Socrate is a local-first AI learning workspace** that turns a single topic into a structured, navigable learning path — with AI-guided sessions, auto-generated syllabi, and durable Markdown notes saved to your machine.
+
+> 从一个问题开始，生成一张学习地图，并把每一步沉淀成可复用的本地知识资产。
 
 Socrate 是一个本地优先的 AI 学习工作台。它把「和 AI 聊天」升级成一套可持续的学习流程：先澄清目标，再生成大纲，围绕每个知识点逐步引导，并把学习过程沉淀为可长期保存的 Markdown 笔记。
 
 它适合用来系统学习一个新领域、快速建立技术栈知识框架、拆解复杂课程，或把零散的 AI 问答整理成可复习、可继续推进的学习档案。
 
+## What is Socrate?
+
+Most AI chat tools give you a long conversation that drifts — context gets lost, topics scatter, and you can't tell where you are or what comes next.
+
+Socrate is different: it acts as a **personal AI tutor** that first clarifies your background and goals, then generates a navigable **learning syllabus**, and guides you through each topic step by step. Everything is saved as local Markdown files you can open in Obsidian, Typora, or any editor.
+
+**Who is it for?**
+
+- Developers learning a new technology stack or framework
+- Students structuring complex courses or curricula
+- Knowledge workers building a personal second brain
+- Researchers who want AI-guided deep dives with reusable notes
+
 ## Highlights
 
-- Local-first: 学习记录、笔记、总结默认保存在本机
-- Structured learning: 每个会话都有大纲、进度和上下文
-- AI-guided: 用反问澄清目标，而不是直接堆答案
-- Durable notes: Markdown 输出可进入 Obsidian / Typora / Git
-- Desktop-ready: Tauri + 自包含后端 sidecar，面向桌面分发
-- Model-flexible: LiteLLM 接入多模型供应商
+| Feature | Description |
+|---|---|
+| **Local-first** | Learning sessions, notes, and summaries saved as Markdown on your machine |
+| **Structured learning** | Every session has a syllabus, progress tracking, and persistent context |
+| **AI-guided** | Uses Socratic questioning to clarify goals before answering |
+| **Durable knowledge** | Outputs work directly in Obsidian / Typora / Git workflows |
+| **Desktop app** | Tauri v2 + self-contained Python sidecar — no separate install required |
+| **Model-flexible** | LiteLLM backend supports OpenAI, DeepSeek, Anthropic, and more |
+| **Mobile web** | Responsive H5 frontend for phone browsers |
+
+## Tech Stack
+
+- **Desktop shell**: [Tauri v2](https://tauri.app/) (Rust)
+- **Backend**: [FastAPI](https://fastapi.tiangolo.com/) + [LiteLLM](https://github.com/BerriAI/litellm) (Python ≥ 3.13, packaged with PyInstaller)
+- **Frontend**: React 18 + Vite (TypeScript)
+- **AI**: Any LiteLLM-compatible provider — OpenAI, Anthropic Claude, DeepSeek, Ollama, etc.
+- **Storage**: Local Markdown + JSONL files (no database required)
+- **Streaming**: Server-Sent Events (SSE)
 
 ## 产品理念
 
@@ -41,59 +65,59 @@ Socrate 的核心假设是：学习不应该只是回答问题，而应该是一
 - 在学习过程中保留全局上下文，避免重复和跑偏
 - 把会话、大纲、笔记和总结保存到本地文件系统
 
-## 核心能力
+## Core Features
 
-### 引导式开场
+### Socratic Onboarding
 
-输入想学习的主题后，Socrate 不会立即开始长篇讲解，而是先提出 2-4 轮背景问题，确认你的基础、目标和偏好，再生成学习计划。
+Instead of dumping a wall of text, Socrate asks 2–4 clarifying questions about your background, goals, and constraints before generating a learning plan. This is the "Socratic method" the name references.
 
-### 结构化学习地图
+### Structured Learning Syllabus (知识地图)
 
-每个会话都会生成一棵学习大纲。你可以看到当前主题、子主题、完成状态，以及下一步可以进入哪里。
+Every session generates a navigable topic tree. You can see current topic, subtopics, completion status, and jump between nodes at any time.
 
-### 知识点级对话
+### Node-level Conversations (知识点级对话)
 
-每个大纲节点都有自己的对话上下文。你可以围绕某个概念追问、要求例子、要求简化解释，也可以回到大纲切换到另一个知识点。
+Each syllabus node maintains its own conversation context. Ask follow-up questions, request examples, or simplify explanations — then switch to another node without losing context.
 
-### 本地文件记忆
+### Local File Memory (本地文件记忆)
 
-Socrate 默认把学习数据写入本地 Markdown 和 JSON 文件。你可以把这些文件放进 Obsidian、Typora 或自己的知识库继续整理。
+All learning data is written to local Markdown and JSON files. Drop them into Obsidian, Typora, or your own Git repository for long-term review.
 
-### 多模型支持
+### Multi-model Support (多模型支持)
 
-后端基于 LiteLLM，支持不同模型供应商，并区分快速模型和专业模型。日常问答可以用低延迟模型，大纲、总结和深度讲解可以用更强模型。
+Backed by LiteLLM, Socrate separates fast models (for quick Q&A) from pro models (for syllabus generation, summaries, and deep explanations). Configure any provider.
 
-### 桌面应用和移动 Web
+### Desktop + Mobile Web
 
-Socrate 提供 Tauri 桌面端，也提供面向手机浏览器的 H5 版本。两者共用同一个 FastAPI 后端和学习数据模型。
+Tauri desktop app for macOS + H5 web frontend for mobile browsers. Both share the same FastAPI backend and learning data model.
 
-## 使用方式
+## 使用方式 / Getting Started
 
-### 桌面应用
+### Desktop App (macOS)
 
-macOS 桌面包通过 Tauri 打包，后端以自包含 sidecar 形式随应用发布。目标机器不需要安装 `uv` 或 Python 后端依赖。
+The macOS desktop package bundles the backend as a self-contained sidecar via Tauri. No `uv` or Python installation required on the target machine.
 
-打包产物示例：
+Example build artifact:
 
 ```text
 src-tauri/target/release/bundle/dmg/Socrate_0.1.0_x64.dmg
 ```
 
-桌面应用运行后，配置、日志和学习数据会写入用户数据目录。macOS 默认路径：
+App data (config, logs, learning files) is written to:
 
 ```text
 ~/Library/Application Support/Socrate/
 ```
 
-### 本地开发
+### Local Development
 
-复制环境变量示例：
+Copy the environment config:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-编辑 `backend/.env`，填入模型和 API Key：
+Edit `backend/.env` and add your model and API keys:
 
 ```bash
 SOCRATE_DEFAULT_MODEL=deepseek/deepseek-v4-pro
@@ -102,99 +126,99 @@ SOCRATE_PRO_MODEL=deepseek/deepseek-v4-pro
 SOCRATE_API_KEYS='{"deepseek":"sk-...","openai":"sk-...","anthropic":"sk-..."}'
 ```
 
-启动桌面 Web 开发环境：
+Start the development environment:
 
 ```bash
 bash scripts/dev.sh
 ```
 
-打开：
+Open in browser:
 
-```text
+```
 http://localhost:1420
 ```
 
-## 架构
+## Architecture
 
-```text
-Desktop / H5
-    |
-    | /api/*
-    v
-FastAPI backend
-    |
-    | LiteLLM
-    v
-AI provider
-    |
-    v
-Local learning files
+```
+Desktop App / Mobile H5
+        │
+        │  /api/*  (HTTP + SSE)
+        ▼
+  FastAPI Backend
+        │
+        │  LiteLLM
+        ▼
+  AI Provider (OpenAI / DeepSeek / Anthropic / Ollama …)
+        │
+        ▼
+  Local Markdown Files
 ```
 
-代码结构：
+Project layout:
 
-```text
-Socrate
-|-- backend/         FastAPI API、AI 引擎、学习流程、文件记忆
-|-- src/             桌面端 React + Vite 前端
-|-- h5/              移动端 React + Vite 前端
-|-- src-tauri/       Tauri v2 桌面壳和打包配置
-|-- docs/            产品文档、设计稿、实现计划
-|-- scripts/         开发、依赖检查、桌面打包脚本
-`-- learning-output/ 本地学习产物，默认不加入 git
+```
+socrate/
+├── backend/          FastAPI API, AI engine, learning flow, file memory
+├── src/              Desktop React + Vite frontend
+├── h5/               Mobile React + Vite frontend
+├── src-tauri/        Tauri v2 shell and packaging config
+├── docs/             Product docs, design, implementation plans
+├── scripts/          Dev, dependency check, packaging scripts
+└── learning-output/  Local learning artifacts (gitignored by default)
 ```
 
-## 本地数据格式
+## Local Data Format
 
-开发模式下，学习数据默认保存在：
+In development mode, learning data is saved to:
 
 ```text
 learning-output/{session-slug}/
-|-- session.json
-|-- syllabus.md
-|-- ai-log.jsonl
-|-- {topic-name}.md
-`-- summary.md
+├── session.json      session metadata and state
+├── syllabus.md       generated learning syllabus
+├── ai-log.jsonl      full AI conversation log
+├── {topic-name}.md   per-topic notes
+└── summary.md        session summary
 ```
 
-这些文件是 Socrate 的长期价值核心：即使离开应用，也能保留完整学习轨迹。
+These files are the core long-term value: even if you stop using Socrate, your complete learning history stays on your machine in plain text.
 
-## 安装开发环境
+## Installation
 
-基础依赖：
+### Prerequisites
 
-- Python `>=3.13`
+- Python `≥ 3.13`
 - `uv`
-- Node.js 和 npm
-- LiteLLM 兼容模型 API Key
+- Node.js and npm
+- API key for any [LiteLLM-compatible model](https://docs.litellm.ai/docs/providers)
 
-桌面端开发/打包额外需要：
+For desktop builds, additionally:
 
 - Rust toolchain
-- macOS 上需要 Xcode Command Line Tools
+- macOS: Xcode Command Line Tools
 
-自动安装和检查：
+### Bootstrap
 
 ```bash
 bash scripts/bootstrap.sh
 ```
 
-包含 Tauri/Rust：
+With Tauri/Rust support:
 
 ```bash
 bash scripts/bootstrap.sh --tauri
 ```
 
-## 开发命令
+## Development Commands
 
-后端：
+**Backend:**
 
 ```bash
 uv run uvicorn backend.main:app --reload --port 8421
 uv run python -m compileall backend
 ```
 
-桌面前端：
+**Desktop frontend:**
 
 ```bash
 cd src
@@ -203,7 +227,7 @@ npm run build
 npm run lint
 ```
 
-H5 前端：
+**H5 frontend:**
 
 ```bash
 cd h5
@@ -211,47 +235,37 @@ npm run dev
 npm run build
 ```
 
-Tauri 开发：
+**Tauri dev:**
 
 ```bash
 bash scripts/tauri-dev.sh
 ```
 
-Tauri 打包：
+**Tauri package (DMG):**
 
 ```bash
 bash scripts/package-tauri.sh
 ```
 
-打包脚本会：
+The packaging script:
+1. Checks Python, npm, Rust dependencies
+2. Installs Python and frontend dependencies
+3. Builds a self-contained backend sidecar with PyInstaller
+4. Runs `npx tauri build`
+5. Outputs `.app` and `.dmg`
 
-1. 检查 Python、npm、Rust 依赖
-2. 安装 Python 和前端依赖
-3. 用 PyInstaller 生成自包含后端 sidecar
-4. 执行 `npx tauri build`
-5. 输出 `.app` 和 `.dmg`
-
-如需使用依赖本机 `uv` / `python3` 的调试启动器：
+For a debug launcher that depends on the host's `uv` / `python3`:
 
 ```bash
 bash scripts/package-tauri.sh --launcher-sidecar
 ```
 
-## 配置
+## Configuration
 
-配置文件：
+Config file: `backend/.env`  
+Example: `backend/.env.example`
 
-```text
-backend/.env
-```
-
-示例文件：
-
-```text
-backend/.env.example
-```
-
-常用配置：
+Common settings:
 
 ```bash
 SOCRATE_HOST=127.0.0.1
@@ -261,7 +275,7 @@ SOCRATE_LOG_DIR=logs
 SOCRATE_LOG_LEVEL=INFO
 ```
 
-上下文和生成长度：
+Context window and generation length:
 
 ```bash
 SOCRATE_CONTEXT_WINDOW_TOKENS=1000000
@@ -275,52 +289,54 @@ SOCRATE_DEEP_DIVE_MAX_TOKENS=131072
 SOCRATE_SUMMARY_MAX_TOKENS=262144
 ```
 
-`backend/.env` 不应提交到 git。
+`backend/.env` should not be committed to git.
 
-## API
+## API Reference
 
-主要后端路由：
+Main backend routes:
 
-- `GET /api/health`
-- `GET /api/sessions`
-- `POST /api/sessions`
-- `GET /api/sessions/{session_id}`
-- `DELETE /api/sessions/{session_id}`
-- `POST /api/sessions/{session_id}/start`
-- `POST /api/sessions/{session_id}/chat`
-- `POST /api/sessions/{session_id}/navigate`
-- `POST /api/sessions/{session_id}/back`
-- `POST /api/sessions/{session_id}/overview`
-- `POST /api/sessions/{session_id}/next`
-- `POST /api/sessions/{session_id}/summary`
-- `GET /api/settings`
-- `POST /api/settings`
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/health` | Health check |
+| `GET` | `/api/sessions` | List all sessions |
+| `POST` | `/api/sessions` | Create a new session |
+| `GET` | `/api/sessions/{id}` | Get session details |
+| `DELETE` | `/api/sessions/{id}` | Delete session |
+| `POST` | `/api/sessions/{id}/start` | Start Socratic onboarding |
+| `POST` | `/api/sessions/{id}/chat` | Send a message (SSE stream) |
+| `POST` | `/api/sessions/{id}/navigate` | Navigate to a syllabus node |
+| `POST` | `/api/sessions/{id}/back` | Go back in the syllabus |
+| `POST` | `/api/sessions/{id}/overview` | Get syllabus overview |
+| `POST` | `/api/sessions/{id}/next` | Advance to next topic |
+| `POST` | `/api/sessions/{id}/summary` | Generate session summary |
+| `GET` | `/api/settings` | Get app settings |
+| `POST` | `/api/settings` | Update app settings |
 
-流式接口使用 Server-Sent Events。
+All streaming endpoints use Server-Sent Events (SSE).
 
-## 路线图
+## Roadmap
 
-- 更完整的大纲编辑能力
-- 更稳定的桌面发布流程
-- 更细粒度的模型策略
-- 更丰富的学习总结和复习视图
-- 更完善的 H5 部署和同步体验
+- More complete syllabus editing
+- Smoother desktop release pipeline
+- Finer-grained model routing strategy
+- Richer learning summary and review views
+- Better H5 deployment and sync experience
 
-## 文档
+## Documentation
 
-- 产品需求：`docs/PRD.md`
-- H5 实现计划：`docs/H5_PLAN.md`
-- 修复记录：`docs/FIX_TODOS.md`
-- 设计稿和原型：`docs/design/`
+- Product requirements: `docs/PRD.md`
+- H5 implementation plan: `docs/H5_PLAN.md`
+- Fix log: `docs/FIX_TODOS.md`
+- Design and prototypes: `docs/design/`
 
-## 贡献
+## Contributing
 
-欢迎提交 Issue 和 PR。请先阅读 `CONTRIBUTING.md`，并在提交前运行对应范围的构建或检查。
+Issues and PRs are welcome. Please read `CONTRIBUTING.md` first and run the relevant build or lint checks before submitting.
 
-## 安全
+## Security
 
-请阅读 `SECURITY.md`。不要在公开 Issue 或 PR 中提交 API Key、私有服务器信息、用户数据或可利用漏洞细节。
+Please read `SECURITY.md`. Do not submit API keys, private server info, user data, or exploitable vulnerability details in public issues or PRs.
 
 ## License
 
-MIT。详见 `LICENSE`。
+MIT. See `LICENSE`.
