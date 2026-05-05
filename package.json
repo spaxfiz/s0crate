@@ -1,11 +1,19 @@
 {
   "name": "socrate",
-  "private": true,
+  "version": "0.1.0",
+  "description": "AI-guided learning workspace with desktop, H5, and FastAPI apps",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spaxfiz/socrate.git"
+  },
   "scripts": {
-    "dev": "cd src && npm run dev",
+    "bootstrap": "bash scripts/bootstrap.sh",
+    "dev": "bash scripts/dev.sh",
     "tauri": "tauri",
     "tauri:dev": "bash scripts/tauri-dev.sh",
-    "tauri:build": "bash -c 'export PATH=\"$HOME/.cargo/bin:$PATH\" && tauri build'"
+    "tauri:build": "bash scripts/package-tauri.sh",
+    "tauri:package": "bash scripts/package-tauri.sh"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.0"

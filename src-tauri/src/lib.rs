@@ -28,7 +28,7 @@ pub fn run() {
                         command
                     }
                 } else {
-                    match handle.shell().sidecar("binaries/socrate-backend") {
+                    match handle.shell().sidecar("socrate-backend") {
                         Ok(command) => command,
                         Err(error) => {
                             eprintln!("Failed to prepare backend sidecar: {error}");

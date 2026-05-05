@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from pydantic import Field, field_validator
@@ -8,7 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent
-ENV_PATH = BACKEND_DIR / ".env"
+ENV_PATH = Path(os.environ.get("SOCRATE_ENV_PATH", BACKEND_DIR / ".env"))
 
 
 class Settings(BaseSettings):
@@ -42,6 +43,8 @@ class Settings(BaseSettings):
         "http://localhost:1421",
         "http://localhost:5173",
         "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
     ]
 
     model_config = SettingsConfigDict(env_prefix="SOCRATE_", env_file=ENV_PATH, extra="ignore")

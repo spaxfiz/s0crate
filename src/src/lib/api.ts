@@ -7,7 +7,18 @@ import type {
   SettingsResponse,
 } from './types'
 
-const BASE = '/api'
+function resolveApiBase() {
+  const configured = import.meta.env.VITE_API_BASE
+  if (configured) return configured
+
+  const { protocol, hostname } = window.location
+  const isTauriProduction = protocol === 'tauri:' || hostname === 'tauri.localhost'
+  if (isTauriProduction) return 'http://127.0.0.1:8421/api'
+
+  return '/api'
+}
+
+const BASE = resolveApiBase()
 
 async function request<T>(path: string, options?: RequestInit, retries = 3): Promise<T> {
   for (let attempt = 0; attempt < retries; attempt++) {

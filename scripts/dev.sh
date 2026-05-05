@@ -1,14 +1,18 @@
-#!/bin/bash
-# Socrate development mode — starts backend + frontend
+#!/usr/bin/env bash
+# Socrate development mode: installs/checks deps, then starts backend + frontend.
 
-set -e
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+bash "$ROOT_DIR/scripts/bootstrap.sh"
 
 echo "Starting Socrate dev environment..."
 echo ""
 
 # Start Python backend in background
 echo "Starting backend on :8421..."
-cd "$(dirname "$0")/.."
+cd "$ROOT_DIR"
 uv run uvicorn backend.main:app --reload --reload-exclude 'src-tauri/target/*' --port 8421 &
 BACKEND_PID=$!
 
