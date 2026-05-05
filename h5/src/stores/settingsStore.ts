@@ -42,19 +42,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
   save: async (partial) => {
-    const current = get().settings
-    set({
-      settings: {
-        fastModel: partial.fastModel ?? current.fastModel,
-        apiKeys: partial.apiKeys ? current.apiKeys : current.apiKeys,
-      },
-    })
-    await api.saveSettings({
-      fast_model: partial.fastModel,
-      api_keys: partial.apiKeys || undefined,
-    })
-    await get().load()
-    set({ editingKeys: {} })
+    void partial
   },
   setEditingKey: (provider, key) => {
     set({ editingKeys: { ...get().editingKeys, [provider]: key } })

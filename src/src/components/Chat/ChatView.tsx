@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { memo, useState, useRef, useEffect, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useSessionStore } from '../../stores/sessionStore'
 import type { ChatMessage, ChatOption, SyllabusNode } from '../../lib/types'
 
-function MessageHeader({ role }: { role: string }) {
+const MessageHeader = memo(function MessageHeader({ role }: { role: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
       {role === 'assistant' ? (
@@ -34,9 +34,9 @@ function MessageHeader({ role }: { role: string }) {
       )}
     </div>
   )
-}
+})
 
-function Message({ message, index }: { message: ChatMessage; index: number }) {
+const Message = memo(function Message({ message, index }: { message: ChatMessage; index: number }) {
   const isUser = message.role === 'user'
   return (
     <div style={{ marginTop: index === 0 ? 0 : 28 }}>
@@ -55,6 +55,78 @@ function Message({ message, index }: { message: ChatMessage; index: number }) {
       )}
     </div>
   )
+})
+
+function SyllabusGeneratingState({ status, retrying }: { status: string | null; retrying: boolean }) {
+  const stageText = retrying ? 'Retrying · 正在重试' : 'Syllabus · 大纲生成中'
+  const detailText = status || 'Socrate 正在把你的目标、背景和回答整理成学习路径。'
+
+  return (
+    <div style={{
+      margin: '30px auto 0',
+      maxWidth: 520,
+      padding: '28px 32px',
+      borderTop: '1px solid var(--rule-soft)',
+      borderBottom: '1px solid var(--rule-soft)',
+      textAlign: 'center',
+    }}>
+      <div className="syllabus-orb" style={{
+        width: 52,
+        height: 52,
+        margin: '0 auto 14px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        color: 'var(--accent-deep)',
+        background: 'rgba(196,164,124,0.12)',
+      }}>
+        <span className="syllabus-ring" aria-hidden="true" />
+        <span className="syllabus-scan" aria-hidden="true" />
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <path d="M8 6.5h12M8 14h12M8 21.5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M5 6.5h.01M5 14h.01M5 21.5h.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div style={{
+        fontFamily: 'var(--sans)',
+        fontWeight: 700,
+        fontSize: 11,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+        color: 'var(--accent-deep)',
+        marginBottom: 8,
+      }}>
+        {stageText}
+      </div>
+      <div style={{
+        fontFamily: 'var(--serif)',
+        fontSize: 18,
+        lineHeight: 1.7,
+        color: 'var(--ink)',
+      }}>
+        {detailText}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 16 }}>
+        {['整理目标', '搭建结构', retrying ? '重新生成' : '校验大纲'].map((label, index) => (
+          <div key={label} className="syllabus-step" style={{ animationDelay: `${index * 0.18}s` }}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        marginTop: 10,
+        fontFamily: 'var(--serif)',
+        fontStyle: 'italic',
+        fontSize: 14,
+        color: 'var(--ink-mute)',
+      }}>
+        正在校准章节顺序与每一节的切入角度
+        <span className="bob1">.</span><span className="bob2">.</span><span className="bob3">.</span>
+      </div>
+    </div>
+  )
 }
 
 export function ChatView() {
@@ -63,6 +135,8 @@ export function ChatView() {
     sendMessage,
     isStreaming,
     streamContent,
+    syllabusStatus,
+    syllabusRetrying,
     errorMessage,
     noticeMessage,
     abortStreaming,
@@ -79,23 +153,28 @@ export function ChatView() {
   const phase = current?.phase || 'questioning'
   const currentNodeId = current?.currentNodeId
 
-  // Find current node info
-  const findNode = (nodes: SyllabusNode[], id: string): SyllabusNode | null => {
-    for (const n of nodes) {
-      if (n.id === id) return n
-      if (n.children) { const found = findNode(n.children, id); if (found) return found }
+  const currentNode = useMemo(() => {
+    const findNode = (nodes: SyllabusNode[], id: string): SyllabusNode | null => {
+      for (const n of nodes) {
+        if (n.id === id) return n
+        if (n.children) { const found = findNode(n.children, id); if (found) return found }
+      }
+      return null
     }
-    return null
-  }
-  const currentNode = current?.syllabus ? findNode(current.syllabus.children || [], currentNodeId || '') : null
+    return current?.syllabus ? findNode(current.syllabus.children || [], currentNodeId || '') : null
+  }, [current?.syllabus, currentNodeId])
   const isEmptyLeafNode = phase === 'deep_dive'
     && !!currentNode
     && (!currentNode.children || currentNode.children.length === 0)
     && messages.length === 0
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, streamContent, errorMessage, noticeMessage])
+    const scroller = scrollRef.current
+    scroller?.scrollTo({
+      top: scroller.scrollHeight,
+      behavior: isStreaming ? 'auto' : 'smooth',
+    })
+  }, [messages, streamContent, errorMessage, noticeMessage, isStreaming])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -137,8 +216,7 @@ export function ChatView() {
   // Quick actions for deep_dive
   const quickActions = [
     { l: '✓ 理解了，继续', v: '我理解了，请继续' },
-    { l: '✎ 举个例子', v: '能再举一个具体的例子吗？' },
-    { l: '∇ 深入原理', v: '我想深入了解一下背后的原理' },
+    { l: '↷ 不用了，继续', v: '不用了，继续' },
   ]
 
   return (
@@ -260,7 +338,10 @@ export function ChatView() {
           )}
 
           {/* Streaming */}
-          {isStreaming && (
+          {isStreaming && phase === 'syllabus' && (
+            <SyllabusGeneratingState status={syllabusStatus} retrying={syllabusRetrying} />
+          )}
+          {isStreaming && phase !== 'syllabus' && (
             <div style={{ marginTop: 28 }}>
               <MessageHeader role="assistant" />
               <div style={{ fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.75, color: 'var(--ink)' }} className="md stream-caret">
@@ -315,10 +396,10 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Quick actions (deep_dive) */}
-      {phase === 'deep_dive' && !isStreaming && !isEmptyLeafNode && (
+      {/* Quick actions */}
+      {((phase === 'deep_dive' && !isEmptyLeafNode) || phase === 'summarization') && !isStreaming && (
         <div style={{ padding: '0 56px', borderTop: '1px solid var(--rule-soft)', display: 'flex', gap: 8, paddingTop: 10, paddingBottom: 4, flexWrap: 'wrap' }}>
-          {quickActions.map((b, i) => (
+          {phase === 'deep_dive' && quickActions.map((b, i) => (
             <button key={i} onClick={() => send(b.v)} style={{
               border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12.5,
               padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)',
@@ -327,11 +408,13 @@ export function ChatView() {
           <button onClick={() => navigateNext()} style={{
             border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12.5,
             padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)',
-          }}>⤴ 跳到下一节</button>
-          <button onClick={() => createSummary()} style={{
-            border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12.5,
-            padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)',
-          }}>☉ 生成总结</button>
+          }}>⤴ {phase === 'summarization' ? '继续学习下一节' : '跳到下一节'}</button>
+          {phase === 'deep_dive' && (
+            <button onClick={() => createSummary()} style={{
+              border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12.5,
+              padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)',
+            }}>☉ 生成总结</button>
+          )}
         </div>
       )}
 

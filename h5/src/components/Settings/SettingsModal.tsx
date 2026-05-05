@@ -92,6 +92,8 @@ const PROVIDERS: Provider[] = [
   },
 ]
 
+const SETTINGS_SAVE_DISABLED = true
+
 export function SettingsModal() {
   const { settings, editingKeys, close, save, setEditingKey } = useSettingsStore()
   const [selectedProvider, setSelectedProvider] = useState(() => {
@@ -116,6 +118,7 @@ export function SettingsModal() {
   }, [search])
 
   const handleSaveKey = async () => {
+    if (SETTINGS_SAVE_DISABLED) return
     setSaving(true)
     try {
       const keysToSave: Record<string, string> = {}
@@ -147,14 +150,14 @@ export function SettingsModal() {
         {/* Header */}
         <div style={{ padding: '4px 20px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Settings</h2>
-            <div style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ink-mute)', marginTop: 2 }}>
+            <h2 style={{ fontFamily: 'var(--display)', fontSize: 21, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Settings</h2>
+            <div style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink-mute)', marginTop: 2 }}>
               Personalia · 偏好与凭证
             </div>
           </div>
           <button onClick={close} style={{
             padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer',
-            fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--ink-mute)',
+            fontFamily: 'var(--sans)', fontSize: 17, color: 'var(--ink-mute)',
           }}>✕</button>
         </div>
 
@@ -162,7 +165,7 @@ export function SettingsModal() {
         <div className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '0 20px 16px' }}>
           {/* Provider selector */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
               Provider · 供应商
             </div>
             {/* Current provider (tap to expand list) */}
@@ -170,11 +173,11 @@ export function SettingsModal() {
               width: '100%', padding: '8px 10px',
               border: '1px solid var(--rule)', borderRadius: 3,
               background: 'var(--paper-deep)',
-              fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)',
+              fontFamily: 'var(--sans)', fontSize: 14, color: 'var(--ink)',
               cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span>{selectedProviderData.name} <span style={{ color: 'var(--ink-mute)', fontSize: 11 }}>{selectedProviderData.nameCn}</span></span>
-              <span style={{ fontSize: 10, color: 'var(--ink-mute)', transform: showProviders ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>▾</span>
+              <span>{selectedProviderData.name} <span style={{ color: 'var(--ink-mute)', fontSize: 12 }}>{selectedProviderData.nameCn}</span></span>
+              <span style={{ fontSize: 11, color: 'var(--ink-mute)', transform: showProviders ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.15s' }}>▾</span>
             </button>
 
             {showProviders && (
@@ -186,7 +189,7 @@ export function SettingsModal() {
                   style={{
                     width: '100%', padding: '6px 10px', border: 'none', borderBottom: '1px solid var(--rule-soft)',
                     background: 'var(--paper-deep)',
-                    fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink)', outline: 'none',
+                    fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)', outline: 'none',
                   }}
                 />
                 <div className="thin-scroll" style={{ maxHeight: 200, overflowY: 'auto' }}>
@@ -195,7 +198,7 @@ export function SettingsModal() {
                       width: '100%', padding: '8px 10px', textAlign: 'left',
                       border: 'none', borderBottom: '1px solid var(--rule-soft)',
                       background: selectedProvider === p.id ? 'rgba(139,111,71,0.1)' : 'transparent',
-                      fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink)',
+                      fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)',
                       cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
                     }}>
                       <span style={{ flex: 1 }}>{p.name}</span>
@@ -211,7 +214,7 @@ export function SettingsModal() {
 
           {/* API Key */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
               API Key
               {settings.apiKeys[selectedProvider] && (
                 <span style={{ color: 'var(--moss)', marginLeft: 6, letterSpacing: 0, textTransform: 'none', fontWeight: 400 }}>✓ configured</span>
@@ -220,26 +223,31 @@ export function SettingsModal() {
             <div style={{ display: 'flex', gap: 6 }}>
               <input
                 value={currentEditingKey}
-                onChange={e => setEditingKey(selectedProvider, e.target.value)}
+                onChange={e => {
+                  if (SETTINGS_SAVE_DISABLED) return
+                  setEditingKey(selectedProvider, e.target.value)
+                }}
                 placeholder={settings.apiKeys[selectedProvider] ? '••••••••••••••••' : 'sk-…'}
                 type="password"
+                disabled={SETTINGS_SAVE_DISABLED}
                 style={{
                   flex: 1, padding: '7px 9px', border: '1px solid var(--rule)',
                   background: 'var(--paper-deep)', borderRadius: 3,
-                  fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)', outline: 'none',
+                  fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--ink)', outline: 'none',
+                  opacity: SETTINGS_SAVE_DISABLED ? 0.6 : 1,
                 }}
               />
-              <button onClick={handleSaveKey} disabled={saving || !currentEditingKey} style={{
+              <button onClick={handleSaveKey} disabled={SETTINGS_SAVE_DISABLED || saving || !currentEditingKey} style={{
                 padding: '7px 12px', border: '1px solid var(--rule)',
-                background: currentEditingKey ? 'var(--paper-deep)' : 'transparent',
-                fontFamily: 'var(--sans)', fontSize: 10, color: currentEditingKey ? 'var(--ink)' : 'var(--ink-faint)',
-                cursor: currentEditingKey ? 'pointer' : 'default', borderRadius: 3, whiteSpace: 'nowrap',
+                background: currentEditingKey && !SETTINGS_SAVE_DISABLED ? 'var(--paper-deep)' : 'transparent',
+                fontFamily: 'var(--sans)', fontSize: 11, color: currentEditingKey && !SETTINGS_SAVE_DISABLED ? 'var(--ink)' : 'var(--ink-faint)',
+                cursor: 'default', borderRadius: 3, whiteSpace: 'nowrap',
               }}>
                 {saving ? '…' : 'Save'}
               </button>
             </div>
             {selectedProvider === 'ollama' && (
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-mute)', marginTop: 4 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-mute)', marginTop: 4 }}>
                 Ollama runs locally — no API key needed.
               </div>
             )}
@@ -247,34 +255,40 @@ export function SettingsModal() {
 
           {/* Fast Model selector */}
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+            <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
               ⚡ Fast Model · 快速模型
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
               {selectedProviderData.models.map(m => (
-                <button key={m.id} onClick={() => save({ fastModel: m.id })} style={{
+                <button key={m.id} disabled={SETTINGS_SAVE_DISABLED} onClick={() => save({ fastModel: m.id })} style={{
                   padding: '7px 10px', textAlign: 'left',
                   border: '1px solid', borderColor: settings.fastModel === m.id ? 'var(--accent)' : 'var(--rule-soft)',
                   background: settings.fastModel === m.id ? 'rgba(139,111,71,0.1)' : 'var(--paper)',
-                  fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink)',
-                  cursor: 'pointer', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--ink)',
+                  cursor: 'default', borderRadius: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  opacity: SETTINGS_SAVE_DISABLED && settings.fastModel !== m.id ? 0.62 : 1,
                 }}>
                   <span>{m.label}</span>
-                  {settings.fastModel === m.id && <span style={{ fontFamily: 'var(--sans)', fontSize: 9, color: 'var(--accent-deep)' }}>✓</span>}
+                  {settings.fastModel === m.id && <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--accent-deep)' }}>✓</span>}
                 </button>
               ))}
             </div>
             <input
               value={settings.fastModel}
-              onChange={e => save({ fastModel: e.target.value })}
+              onChange={e => {
+                if (SETTINGS_SAVE_DISABLED) return
+                save({ fastModel: e.target.value })
+              }}
               placeholder="provider/model-name"
+              disabled={SETTINGS_SAVE_DISABLED}
               style={{
                 width: '100%', padding: '6px 9px', border: '1px solid var(--rule)',
                 background: 'var(--paper-deep)', borderRadius: 3,
-                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink)', outline: 'none',
+                fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink)', outline: 'none',
+                opacity: SETTINGS_SAVE_DISABLED ? 0.6 : 1,
               }}
             />
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-mute)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-mute)', marginTop: 4 }}>
               LiteLLM format: provider/model-name
             </div>
           </div>
@@ -284,14 +298,14 @@ export function SettingsModal() {
         <div style={{ padding: '0 20px 14px', paddingBottom: 'max(14px, var(--safe-bottom))' }}>
           <hr style={{ border: 0, height: 1, background: 'linear-gradient(90deg, transparent, var(--rule) 10%, var(--rule) 90%, transparent)', margin: '0 0 10px' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-mute)' }}>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-mute)' }}>
               Socrate H5 v0.1 · LiteLLM
             </span>
-            <button onClick={handleSaveKey} disabled={saving || !currentEditingKey} style={{
-              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12, padding: '6px 16px',
+            <button onClick={handleSaveKey} disabled={SETTINGS_SAVE_DISABLED || saving || !currentEditingKey} style={{
+              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, padding: '6px 16px',
               borderRadius: 999, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)',
-              cursor: currentEditingKey ? 'pointer' : 'default',
-              opacity: currentEditingKey ? 1 : 0.5,
+              cursor: 'default',
+              opacity: 0.45,
             }}>
               {saving ? '…' : 'Save · 保存'}
             </button>

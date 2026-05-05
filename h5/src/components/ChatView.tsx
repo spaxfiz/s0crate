@@ -21,9 +21,9 @@ function MessageHeader({ role }: { role: string }) {
             width: 20, height: 20,
             background: 'radial-gradient(circle at 30% 30%, var(--accent-soft), var(--accent-deep))',
             color: 'var(--paper)', borderRadius: '50%',
-            fontFamily: 'var(--display)', fontWeight: 700, fontSize: 10,
+            fontFamily: 'var(--display)', fontWeight: 700, fontSize: 11,
           }}>Σ</div>
-          <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
             Socrate
           </span>
         </>
@@ -32,9 +32,9 @@ function MessageHeader({ role }: { role: string }) {
           <div style={{
             width: 20, height: 20, borderRadius: '50%', border: '1px solid var(--ink-mute)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ink-mute)',
+            fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink-mute)',
           }}>Q</div>
-          <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
             You
           </span>
         </>
@@ -50,13 +50,13 @@ function Message({ message, index }: { message: ChatMessage; index: number }) {
       <MessageHeader role={message.role} />
       {isUser ? (
         <div style={{
-          fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 15,
+          fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 16,
           color: 'var(--ink-soft)', paddingLeft: 10, borderLeft: '2px solid var(--accent-soft)', lineHeight: 1.5,
         }}>
           "{message.content}"
         </div>
       ) : (
-        <div style={{ fontFamily: 'var(--serif)', fontSize: 14, lineHeight: 1.7, color: 'var(--ink)' }} className="md">
+        <div style={{ fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.7, color: 'var(--ink)' }} className="md">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
         </div>
       )}
@@ -64,12 +64,85 @@ function Message({ message, index }: { message: ChatMessage; index: number }) {
   )
 }
 
-export function ChatView() {
+function SyllabusGeneratingState({ status, retrying }: { status: string | null; retrying: boolean }) {
+  const stageText = retrying ? 'Retrying · 正在重试' : 'Syllabus · 大纲生成中'
+  const detailText = status || '正在把你的目标和回答整理成学习路径。'
+
+  return (
+    <div style={{
+      margin: '22px auto 0',
+      padding: '20px 18px',
+      borderTop: '1px solid var(--rule-soft)',
+      borderBottom: '1px solid var(--rule-soft)',
+      textAlign: 'center',
+    }}>
+      <div className="syllabus-orb" style={{
+        width: 44,
+        height: 44,
+        margin: '0 auto 12px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        color: 'var(--accent-deep)',
+        background: 'rgba(196,164,124,0.12)',
+      }}>
+        <span className="syllabus-ring" aria-hidden="true" />
+        <span className="syllabus-scan" aria-hidden="true" />
+        <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <path d="M8 6.5h12M8 14h12M8 21.5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M5 6.5h.01M5 14h.01M5 21.5h.01" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div style={{
+        fontFamily: 'var(--sans)',
+        fontWeight: 700,
+        fontSize: 10,
+        letterSpacing: '0.16em',
+        textTransform: 'uppercase',
+        color: 'var(--accent-deep)',
+        marginBottom: 7,
+      }}>
+        {stageText}
+      </div>
+      <div style={{
+        fontFamily: 'var(--serif)',
+        fontSize: 16,
+        lineHeight: 1.65,
+        color: 'var(--ink)',
+      }}>
+        {detailText}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginTop: 14 }}>
+        {['整理目标', '搭建结构', retrying ? '重新生成' : '校验大纲'].map((label, index) => (
+          <div key={label} className="syllabus-step" style={{ animationDelay: `${index * 0.18}s` }}>
+            {label}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        marginTop: 8,
+        fontFamily: 'var(--serif)',
+        fontStyle: 'italic',
+        fontSize: 13,
+        color: 'var(--ink-mute)',
+      }}>
+        正在校准章节顺序
+        <span className="bob1">.</span><span className="bob2">.</span><span className="bob3">.</span>
+      </div>
+    </div>
+  )
+}
+
+export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
   const {
     current,
     sendMessage,
     isStreaming,
     streamContent,
+    syllabusStatus,
+    syllabusRetrying,
     errorMessage,
     noticeMessage,
     abortStreaming,
@@ -143,8 +216,7 @@ export function ChatView() {
 
   const quickActions = [
     { l: '✓ 理解了', v: '我理解了，请继续' },
-    { l: '✎ 举例', v: '能再举一个具体的例子吗？' },
-    { l: '∇ 深入原理', v: '我想深入了解一下背后的原理' },
+    { l: '↷ 不用了，继续', v: '不用了，继续' },
   ]
 
   return (
@@ -157,21 +229,21 @@ export function ChatView() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
           <span style={{
-            fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase',
+            fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase',
             color: 'var(--accent-deep)', background: 'rgba(139,111,71,0.1)',
             padding: '2px 6px', borderRadius: 3, flexShrink: 0,
           }}>
             {PHASE_LABELS[phase] || phase}
           </span>
           <span style={{
-            fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink)', fontWeight: 500,
+            fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink)', fontWeight: 500,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {crumbTitle}
           </span>
         </div>
         {folio && (
-          <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ink-mute)', flexShrink: 0, marginLeft: 8 }}>
+          <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink-mute)', flexShrink: 0, marginLeft: 8 }}>
             {folio}
           </span>
         )}
@@ -183,33 +255,33 @@ export function ChatView() {
           {/* Title block */}
           {phase === 'deep_dive' && currentNode && (
             <div style={{ marginBottom: 24, textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
                 Capitulum · {currentNode.num}
               </div>
-              <h1 style={{ fontFamily: 'var(--display)', fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: '0.01em', color: 'var(--ink)' }}>{currentNode.title}</h1>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-soft)', marginTop: 3 }}>{currentNode.description}</div>
+              <h1 style={{ fontFamily: 'var(--display)', fontSize: 29, fontWeight: 600, margin: 0, letterSpacing: '0.01em', color: 'var(--ink)' }}>{currentNode.title}</h1>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--ink-soft)', marginTop: 3 }}>{currentNode.description}</div>
               <div className="ornament" style={{ marginTop: 10 }}>✦ ❦ ✦</div>
             </div>
           )}
           {phase === 'questioning' && (
             <div style={{ marginBottom: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 4 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 4 }}>
                 Prologus · 序章
               </div>
-              <h1 style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 22, fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
+              <h1 style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 23, fontWeight: 500, margin: 0, color: 'var(--ink)' }}>
                 "Know thyself first."
               </h1>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 12, color: 'var(--ink-mute)', marginTop: 4 }}>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 13, color: 'var(--ink-mute)', marginTop: 4 }}>
                 先认识你自己，再认识世界。
               </div>
             </div>
           )}
           {phase === 'summarization' && (
             <div style={{ marginBottom: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 4 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 4 }}>
                 Colophon · 跋
               </div>
-              <h1 style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Looking Back</h1>
+              <h1 style={{ fontFamily: 'var(--display)', fontSize: 25, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Looking Back</h1>
             </div>
           )}
 
@@ -226,35 +298,56 @@ export function ChatView() {
             }}>
               <div style={{
                 fontFamily: 'var(--serif)',
-                fontSize: 14,
+                fontSize: 15,
                 lineHeight: 1.6,
                 color: 'var(--ink-soft)',
                 marginBottom: 12,
               }}>
                 本节还没有学习内容。
               </div>
-              <button onClick={() => send('开始学习本节')} style={{
-                fontFamily: 'var(--sans)',
-                fontWeight: 600,
-                fontSize: 12,
-                letterSpacing: '0.08em',
-                padding: '8px 16px',
-                borderRadius: 999,
-                border: '1px solid var(--accent-deep)',
-                background: 'var(--accent-deep)',
-                color: 'var(--paper)',
-                cursor: 'pointer',
-              }}>
-                开始学习
-              </button>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {onOpenDrawer && (
+                  <button onClick={onOpenDrawer} style={{
+                    fontFamily: 'var(--sans)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    letterSpacing: '0.08em',
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: '1px solid var(--rule)',
+                    background: 'transparent',
+                    color: 'var(--ink)',
+                    cursor: 'pointer',
+                  }}>
+                    查看大纲
+                  </button>
+                )}
+                <button onClick={() => send('开始学习本节')} style={{
+                  fontFamily: 'var(--sans)',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  letterSpacing: '0.08em',
+                  padding: '8px 16px',
+                  borderRadius: 999,
+                  border: '1px solid var(--accent-deep)',
+                  background: 'var(--accent-deep)',
+                  color: 'var(--paper)',
+                  cursor: 'pointer',
+                }}>
+                  开始学习
+                </button>
+              </div>
             </div>
           )}
 
           {/* Streaming */}
-          {isStreaming && (
+          {isStreaming && phase === 'syllabus' && (
+            <SyllabusGeneratingState status={syllabusStatus} retrying={syllabusRetrying} />
+          )}
+          {isStreaming && phase !== 'syllabus' && (
             <div style={{ marginTop: 20 }}>
               <MessageHeader role="assistant" />
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 14, lineHeight: 1.7, color: 'var(--ink)' }} className="md stream-caret">
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.7, color: 'var(--ink)' }} className="md stream-caret">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{streamContent}</ReactMarkdown>
               </div>
             </div>
@@ -269,7 +362,7 @@ export function ChatView() {
               color: errorMessage ? 'var(--crimson)' : 'var(--ink-soft)',
               borderRadius: 4,
               fontFamily: 'var(--sans)',
-              fontSize: 11.5,
+              fontSize: 12.5,
               lineHeight: 1.5,
             }}>
               {errorMessage || noticeMessage}
@@ -279,12 +372,12 @@ export function ChatView() {
           {/* Options */}
           {showOptions && (
             <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 10, borderLeft: '1px solid var(--rule-soft)' }}>
-              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 2 }}>
+              <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 2 }}>
                 Choose · 选择
               </div>
               {lastMsg!.options!.map((opt, i) => (
                 <button key={i} onClick={() => onChip(opt)} style={{
-                  fontFamily: 'var(--serif)', fontSize: 13, padding: '7px 12px',
+                  fontFamily: 'var(--serif)', fontSize: 14, padding: '7px 12px',
                   borderRadius: 4, border: '1px solid var(--rule)',
                   background: opt.type === 'custom' ? 'transparent' : 'var(--paper)',
                   color: opt.type === 'custom' ? 'var(--ink-mute)' : 'var(--ink)',
@@ -293,7 +386,7 @@ export function ChatView() {
                   fontStyle: opt.type === 'custom' ? 'italic' : 'normal',
                   borderStyle: opt.type === 'custom' ? 'dashed' : 'solid',
                 }}>
-                  <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>
+                  <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 13, color: 'var(--accent)', fontWeight: 600 }}>
                     {String.fromCharCode(945 + i)}.
                   </span>
                   <span>{opt.label}</span>
@@ -306,28 +399,30 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Quick actions (deep_dive) - horizontal scroll */}
-      {phase === 'deep_dive' && !isStreaming && !isEmptyLeafNode && (
+      {/* Quick actions - horizontal scroll */}
+      {((phase === 'deep_dive' && !isEmptyLeafNode) || phase === 'summarization') && !isStreaming && (
         <div style={{
           flexShrink: 0,
           padding: '0 16px', borderTop: '1px solid var(--rule-soft)',
           display: 'flex', gap: 6, paddingTop: 8, paddingBottom: 4,
           overflowX: 'auto', whiteSpace: 'nowrap',
         }} className="thin-scroll">
-          {quickActions.map((b, i) => (
+          {phase === 'deep_dive' && quickActions.map((b, i) => (
             <button key={i} onClick={() => send(b.v)} style={{
-              border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12,
+              border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 13,
               padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)', flexShrink: 0,
             }}>{b.l}</button>
           ))}
           <button onClick={() => navigateNext()} style={{
-            border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12,
+            border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 13,
             padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)', flexShrink: 0,
-          }}>⤴ 下一节</button>
-          <button onClick={() => createSummary()} style={{
-            border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 12,
-            padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)', flexShrink: 0,
-          }}>☉ 总结</button>
+          }}>⤴ {phase === 'summarization' ? '继续学习下一节' : '下一节'}</button>
+          {phase === 'deep_dive' && (
+            <button onClick={() => createSummary()} style={{
+              border: 'none', background: 'transparent', fontFamily: 'var(--serif)', fontSize: 13,
+              padding: '4px 8px', cursor: 'pointer', color: 'var(--ink-mute)', flexShrink: 0,
+            }}>☉ 总结</button>
+          )}
         </div>
       )}
 
@@ -345,7 +440,7 @@ export function ChatView() {
           background: 'var(--paper)', padding: '8px 10px',
           boxShadow: 'inset 0 1px 0 rgba(255,250,235,0.6), 0 1px 0 rgba(120,90,40,0.08)',
         }}>
-          <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 13, color: 'var(--ink-mute)', paddingTop: 3 }}>Q.</span>
+          <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 14, color: 'var(--ink-mute)', paddingTop: 3 }}>Q.</span>
           <textarea
             ref={inputRef}
             value={input}
@@ -355,18 +450,18 @@ export function ChatView() {
             rows={1}
             style={{
               flex: 1, border: 'none', outline: 'none', resize: 'none',
-              fontFamily: 'var(--serif)', fontSize: 14, lineHeight: 1.5,
+              fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.5,
               background: 'transparent', color: 'var(--ink)', minHeight: 20, maxHeight: 80,
             }}
           />
           {isStreaming ? (
             <button onClick={abortStreaming} style={{
-              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 11.5, padding: '6px 12px',
+              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12.5, padding: '6px 12px',
               borderRadius: 999, border: '1px solid var(--rule)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer', alignSelf: 'flex-end',
             }}>■ Stop</button>
           ) : (
             <button onClick={() => send(input)} disabled={!input.trim()} style={{
-              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 11.5, padding: '6px 12px',
+              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12.5, padding: '6px 12px',
               borderRadius: 999, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)',
               cursor: input.trim() ? 'pointer' : 'default', alignSelf: 'flex-end',
               opacity: input.trim() ? 1 : 0.5,

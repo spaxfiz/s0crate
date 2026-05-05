@@ -1,15 +1,31 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import type { NodeStatus } from '../../lib/types'
+import type { NodeStatus, SyllabusNode } from '../../lib/types'
 
 type View = 'home' | 'chat' | 'map'
+
+const EMPTY_SYLLABUS: SyllabusNode[] = []
 
 function StatusDot({ status, size = 8 }: { status: NodeStatus; size?: number }) {
   const cls = status === 'in_progress' ? 'dot-pulse' : ''
   const bg = status === 'completed' ? 'var(--moss)' : status === 'in_progress' ? 'var(--crimson)' : 'transparent'
   const border = status === 'pending' ? '1px solid var(--ink-faint)' : 'none'
   return <span className={cls} style={{ width: size, height: size, borderRadius: '50%', background: bg, border, display: 'inline-block', flexShrink: 0 }} />
+}
+
+function getExpandablePath(nodes: SyllabusNode[], targetId: string, ancestors: string[] = []): string[] | null {
+  for (const node of nodes) {
+    const hasChildren = node.children && node.children.length > 0
+    if (node.id === targetId) {
+      return hasChildren ? [...ancestors, node.id] : ancestors
+    }
+    if (hasChildren) {
+      const path = getExpandablePath(node.children, targetId, [...ancestors, node.id])
+      if (path) return path
+    }
+  }
+  return null
 }
 
 export function Sidebar({ view, setView, onNavigate, onNewSession }: {
@@ -19,22 +35,12 @@ export function Sidebar({ view, setView, onNavigate, onNewSession }: {
   const openSettings = useSettingsStore(s => s.open)
   const [sessionsOpen, setSessionsOpen] = useState(true)
   const [syllabusOpen, setSyllabusOpen] = useState(true)
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-
-  const toggle = (id: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  const syllabus = current?.syllabus?.children || []
+  const syllabus = current?.syllabus?.children ?? EMPTY_SYLLABUS
   const currentNodeId = current?.currentNodeId
+  const expanded = useMemo(
+    () => new Set(currentNodeId ? getExpandablePath(syllabus, currentNodeId) || [] : []),
+    [currentNodeId, syllabus],
+  )
 
   return (
     <aside style={{
@@ -88,7 +94,7 @@ export function Sidebar({ view, setView, onNavigate, onNewSession }: {
               <div style={{ padding: '6px 10px 8px' }}>
                 {syllabus.map((p) => (
                   <div key={p.id} style={{ marginBottom: 4 }}>
-                    <div onClick={() => { toggle(p.id); onNavigate(p.id); }}
+                    <div onClick={() => onNavigate(p.id)}
                          style={{
                            display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px',
                            borderRadius: 3, cursor: 'pointer',
@@ -186,9 +192,8 @@ export function Sidebar({ view, setView, onNavigate, onNewSession }: {
         ))}
         <button onClick={openSettings}
                 style={{ padding: '6px 8px', border: 'none', cursor: 'pointer', background: 'transparent', borderRadius: 4, color: 'var(--ink-mute)' }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="2.2" stroke="currentColor" strokeWidth="1.2" />
-            <path d="M7 1v2 M7 11v2 M1 7h2 M11 7h2 M2.5 2.5l1.4 1.4 M10.1 10.1l1.4 1.4 M2.5 11.5l1.4-1.4 M10.1 3.9l1.4-1.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <svg width="14" height="14" viewBox="0 0 14 14">
+            <path fillRule="evenodd" fill="currentColor" d="M7.96 2.5 A4.6 4.6 0 0 1 10.42 3.92 L11.57 3.43 A5.8 5.8 0 0 1 12.38 4.83 L11.38 5.58 A4.6 4.6 0 0 1 11.38 8.42 L12.38 9.17 A5.8 5.8 0 0 1 11.57 10.57 L10.42 10.08 A4.6 4.6 0 0 1 7.96 11.5 L7.81 12.74 A5.8 5.8 0 0 1 6.19 12.74 L6.04 11.5 A4.6 4.6 0 0 1 3.58 10.08 L2.43 10.57 A5.8 5.8 0 0 1 1.62 9.17 L2.63 8.42 A4.6 4.6 0 0 1 2.63 5.58 L1.62 4.83 A5.8 5.8 0 0 1 2.43 3.43 L3.58 3.92 A4.6 4.6 0 0 1 6.04 2.5 L6.19 1.26 A5.8 5.8 0 0 1 7.81 1.26 Z M7 5.2 A1.8 1.8 0 0 1 7 8.8 A1.8 1.8 0 0 1 7 5.2 Z"/>
           </svg>
         </button>
       </div>

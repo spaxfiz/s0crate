@@ -71,3 +71,9 @@ class FilesystemMemory:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
         return str(path.relative_to(self.output_dir))
+
+    def append_ai_log(self, slug: str, entry: dict) -> None:
+        path = self.output_dir / slug / "ai_log.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")

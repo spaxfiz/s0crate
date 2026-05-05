@@ -8,11 +8,15 @@ import type {
 } from '../lib/types'
 import { api } from '../lib/api'
 
+const STREAM_FLUSH_INTERVAL_MS = 50
+
 interface SessionState {
   sessions: SessionSummary[]
   current: LearningSession | null
   isStreaming: boolean
   streamContent: string
+  syllabusStatus: string | null
+  syllabusRetrying: boolean
   errorMessage: string | null
   noticeMessage: string | null
   abortController: AbortController | null
@@ -99,11 +103,41 @@ async function refreshCurrent(set: (partial: Partial<SessionState>) => void, cur
   set({ current: session })
 }
 
+function createStreamContentBuffer(set: (partial: Partial<SessionState>) => void) {
+  let fullContent = ''
+  let flushedContent = ''
+  let timer: number | null = null
+
+  const flush = () => {
+    timer = null
+    if (flushedContent === fullContent) return
+    flushedContent = fullContent
+    set({ streamContent: flushedContent })
+  }
+
+  return {
+    append(content: string) {
+      fullContent += content
+      if (timer !== null) return
+      timer = window.setTimeout(flush, STREAM_FLUSH_INTERVAL_MS)
+    },
+    flush() {
+      if (timer !== null) {
+        window.clearTimeout(timer)
+        timer = null
+      }
+      flush()
+    },
+  }
+}
+
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessions: [],
   current: null,
   isStreaming: false,
   streamContent: '',
+  syllabusStatus: null,
+  syllabusRetrying: false,
   errorMessage: null,
   noticeMessage: null,
   abortController: null,
@@ -115,7 +149,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createSession: async (question: string, modelTier: 'fast' | 'pro' = 'fast') => {
     const session = await api.createSession(question, modelTier)
-    set({ current: session, errorMessage: null, noticeMessage: null })
+    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false })
     void get().loadSessions()
     void get().startSession()
     return session
@@ -123,7 +157,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   loadSession: async (id: string) => {
     const session = await api.getSession(id)
-    set({ current: session, errorMessage: null, noticeMessage: null })
+    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false })
   },
 
   deleteSession: async (id: string) => {
@@ -138,22 +172,34 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (!current) return
 
     const controller = new AbortController()
-    set({ isStreaming: true, streamContent: '', errorMessage: null, noticeMessage: null, abortController: controller })
+    set({
+      isStreaming: true,
+      streamContent: '',
+      syllabusStatus: null,
+      syllabusRetrying: false,
+      errorMessage: null,
+      noticeMessage: null,
+      abortController: controller,
+    })
+    const streamBuffer = createStreamContentBuffer(set)
 
     try {
       const response = await api.startSession(current.id, controller.signal)
-      let fullContent = ''
       let hasError = false
 
       for await (const data of readSSEStream(response)) {
         if (data.type === 'token') {
-          fullContent += data.content
-          set({ streamContent: fullContent })
+          streamBuffer.append(data.content)
         } else if (data.type === 'phase_change') {
           const active = get().current
           if (active) set({ current: { ...active, phase: data.content as LearningPhase } })
         } else if (data.type === 'syllabus_update') {
+          set({ syllabusStatus: '大纲通过校验，正在展开第一节…', syllabusRetrying: false, noticeMessage: null })
           await refreshCurrent(set, get().current)
+        } else if (data.type === 'syllabus_retry') {
+          set({ syllabusStatus: data.content, syllabusRetrying: true, noticeMessage: data.content })
+        } else if (data.type === 'syllabus_review') {
+          set({ syllabusStatus: data.content, syllabusRetrying: false, noticeMessage: null })
         } else if (data.type === 'error') {
           hasError = true
           set({ errorMessage: data.content })
@@ -171,7 +217,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         set({ errorMessage: errorText(error) })
       }
     } finally {
-      set({ isStreaming: false, streamContent: '', abortController: null })
+      streamBuffer.flush()
+      set({ isStreaming: false, streamContent: '', syllabusStatus: null, syllabusRetrying: false, abortController: null })
       try {
         await refreshCurrent(set, get().current)
         set({ errorMessage: null })
@@ -196,27 +243,35 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       current: { ...current, messages: [...current.messages, userMsg] },
       isStreaming: true,
       streamContent: '',
+      syllabusStatus: null,
+      syllabusRetrying: false,
       errorMessage: null,
       noticeMessage: null,
       abortController: controller,
     })
+    const streamBuffer = createStreamContentBuffer(set)
 
     try {
       const response = await api.chat(current.id, message, controller.signal)
-      let fullContent = ''
       let hasError = false
 
       for await (const data of readSSEStream(response)) {
         if (data.type === 'token') {
-          fullContent += data.content
-          set({ streamContent: fullContent })
+          streamBuffer.append(data.content)
         } else if (data.type === 'phase_change') {
           const active = get().current
           if (active) set({ current: { ...active, phase: data.content as LearningPhase } })
         } else if (data.type === 'syllabus_update') {
+          set({ syllabusStatus: '大纲通过校验，正在展开第一节…', syllabusRetrying: false, noticeMessage: null })
           await refreshCurrent(set, get().current)
+        } else if (data.type === 'syllabus_retry') {
+          set({ syllabusStatus: data.content, syllabusRetrying: true, noticeMessage: data.content })
+        } else if (data.type === 'syllabus_review') {
+          set({ syllabusStatus: data.content, syllabusRetrying: false, noticeMessage: null })
         } else if (data.type === 'next_unavailable') {
           set({ noticeMessage: data.content })
+        } else if (data.type === 'navigate_to_next') {
+          await get().navigateNext()
         } else if (data.type === 'error') {
           hasError = true
           set({ errorMessage: data.content })
@@ -234,7 +289,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         set({ errorMessage: errorText(error) })
       }
     } finally {
-      set({ isStreaming: false, streamContent: '', abortController: null })
+      streamBuffer.flush()
+      set({ isStreaming: false, streamContent: '', syllabusStatus: null, syllabusRetrying: false, abortController: null })
       try {
         await refreshCurrent(set, get().current)
         set({ errorMessage: null })
@@ -248,19 +304,20 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
     const controller = new AbortController()
     set({ isStreaming: true, streamContent: '', errorMessage: null, noticeMessage: null, abortController: controller })
+    const streamBuffer = createStreamContentBuffer(set)
 
     try {
       const response = await api.createSummary(current.id, controller.signal)
-      let fullContent = ''
       let hasError = false
 
       for await (const data of readSSEStream(response)) {
         if (data.type === 'token') {
-          fullContent += data.content
-          set({ streamContent: fullContent })
+          streamBuffer.append(data.content)
         } else if (data.type === 'phase_change') {
           const active = get().current
           if (active) set({ current: { ...active, phase: data.content as LearningPhase } })
+        } else if (data.type === 'navigate_to_next') {
+          await get().navigateNext()
         } else if (data.type === 'error') {
           hasError = true
           set({ errorMessage: data.content })
@@ -278,6 +335,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         set({ errorMessage: errorText(error) })
       }
     } finally {
+      streamBuffer.flush()
       set({ isStreaming: false, streamContent: '', abortController: null })
       try {
         await refreshCurrent(set, get().current)
@@ -347,6 +405,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
       },
       noticeMessage: result.hasNext === false ? '已经到达当前层级的最后一节' : null,
     })
+    await refreshCurrent(set, get().current)
   },
 
   abortStreaming: () => {
@@ -355,5 +414,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   clearError: () => set({ errorMessage: null, noticeMessage: null }),
 
-  clearCurrent: () => set({ current: null, errorMessage: null, noticeMessage: null }),
+  clearCurrent: () => set({ current: null, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false }),
 }))

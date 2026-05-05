@@ -19,13 +19,13 @@ export function HomeView({ onStartSession, onOpenSession }: {
       <div style={{ maxWidth: 560, margin: '0 auto', padding: '32px 16px 24px' }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 8 }}>
             Bibliotheca · 学习库
           </div>
-          <h1 style={{ fontFamily: 'var(--display)', fontSize: 32, fontWeight: 600, margin: 0, color: 'var(--ink)', letterSpacing: '0.01em', lineHeight: 1.2 }}>
-            What shall we learn today?
+          <h1 style={{ fontFamily: 'var(--display)', fontSize: 33, fontWeight: 600, margin: 0, color: 'var(--ink)', letterSpacing: '0.01em', lineHeight: 1.2 }}>
+            今天学什么?
           </h1>
-          <div style={{ fontFamily: 'var(--serif)', fontSize: 14, color: 'var(--ink-soft)', marginTop: 6, fontStyle: 'italic' }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 15, color: 'var(--ink-soft)', marginTop: 6, fontStyle: 'italic' }}>
             提出一个问题，让 Socrate 与你一同求索。
           </div>
           <div className="ornament" style={{ marginTop: 14 }}>✦ ❦ ✦</div>
@@ -38,7 +38,7 @@ export function HomeView({ onStartSession, onOpenSession }: {
           boxShadow: '0 2px 0 rgba(120,90,40,0.06), inset 0 1px 0 rgba(255,250,235,0.7)',
           marginBottom: 28,
         }}>
-          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)', marginBottom: 6 }}>
             New Inquiry · 新会话
           </div>
           <textarea
@@ -49,7 +49,7 @@ export function HomeView({ onStartSession, onOpenSession }: {
             rows={2}
             style={{
               width: '100%', border: 'none', outline: 'none', resize: 'none',
-              fontFamily: 'var(--serif)', fontSize: 16, lineHeight: 1.5,
+              fontFamily: 'var(--serif)', fontSize: 17, lineHeight: 1.5,
               background: 'transparent', color: 'var(--ink)',
             }}
           />
@@ -57,13 +57,13 @@ export function HomeView({ onStartSession, onOpenSession }: {
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               {suggestions.map(s => (
                 <button key={s} onClick={() => setQuestion(s)} style={{
-                  fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 11, padding: '3px 8px',
+                  fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12, padding: '3px 8px',
                   borderRadius: 999, border: '1px solid var(--rule)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer',
                 }}>{s}</button>
               ))}
             </div>
             <button onClick={handleStart} style={{
-              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 12, padding: '6px 12px',
+              fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, padding: '6px 12px',
               borderRadius: 999, border: '1px solid var(--ink)', background: 'var(--ink)', color: 'var(--paper)', cursor: 'pointer',
               flexShrink: 0, marginLeft: 8,
             }}>Begin →</button>
@@ -78,14 +78,14 @@ export function HomeView({ onStartSession, onOpenSession }: {
               textAlign: 'center',
               fontFamily: 'var(--display)',
               fontStyle: 'italic',
-              fontSize: 13,
+              fontSize: 14,
               color: 'var(--ink-mute)',
             }}>
               尚无历史会话。提出一个问题开始第一段学习。
             </div>
             <div style={{ textAlign: 'center', marginTop: 16 }}>
               <button onClick={() => { const el = document.querySelector('textarea'); el?.focus(); }} style={{
-                fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, padding: '10px 24px',
+                fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 14, padding: '10px 24px',
                 borderRadius: 999, border: '1px solid var(--accent-deep)', background: 'var(--accent-deep)',
                 color: 'var(--paper)', cursor: 'pointer', letterSpacing: '0.04em',
               }}>
@@ -96,8 +96,8 @@ export function HomeView({ onStartSession, onOpenSession }: {
         ) : (
           <>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ fontFamily: 'var(--display)', fontSize: 20, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Past Inquiries</h2>
-              <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ink-mute)' }}>
+              <h2 style={{ fontFamily: 'var(--display)', fontSize: 21, fontWeight: 600, margin: 0, color: 'var(--ink)' }}>Past Inquiries</h2>
+              <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink-mute)' }}>
                 {sessions.length} inquiries
               </span>
             </div>
@@ -112,21 +112,21 @@ export function HomeView({ onStartSession, onOpenSession }: {
                       background: 'var(--paper)', cursor: 'pointer', position: 'relative',
                     }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
+                      <div style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--ink-mute)' }}>
                         {s.phase}
                       </div>
                       {done ? (
-                        <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 10, color: 'var(--moss)' }}>completed</span>
+                        <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--moss)' }}>completed</span>
                       ) : (
-                        <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--ink-mute)' }}>{s.progress[0]}/{s.progress[1]}</span>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-mute)' }}>{s.progress[0]}/{s.progress[1]}</span>
                       )}
                     </div>
-                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--ink)', lineHeight: 1.3 }}>{s.name}</h3>
+                    <h3 style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 600, margin: 0, color: 'var(--ink)', lineHeight: 1.3 }}>{s.name}</h3>
                     <div style={{ marginTop: 10, height: 2, background: 'var(--rule-soft)', position: 'relative', borderRadius: 1 }}>
                       <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: done ? 'var(--moss)' : 'var(--accent)' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 11, color: 'var(--ink-mute)' }}>
+                      <span style={{ fontFamily: 'var(--display)', fontStyle: 'italic', fontSize: 12, color: 'var(--ink-mute)' }}>
                         {new Date(s.updatedAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '·')}
                       </span>
                       <span style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -141,13 +141,13 @@ export function HomeView({ onStartSession, onOpenSession }: {
                             padding: 0,
                             cursor: 'pointer',
                             fontFamily: 'var(--sans)',
-                            fontSize: 10,
+                            fontSize: 11,
                             color: 'var(--crimson)',
                           }}
                         >
                           delete
                         </button>
-                        <span style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-mute)' }}>resume →</span>
+                        <span style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-mute)' }}>resume →</span>
                       </span>
                     </div>
                   </div>

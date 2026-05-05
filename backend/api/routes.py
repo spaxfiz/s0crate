@@ -207,6 +207,12 @@ async def navigate_next(session_id: str):
         raise HTTPException(404, "Session not found")
 
     nav = Navigator(session)
+    previous = nav.get_current_node()
+    if previous and previous.id != "root":
+        completed = orchestrator.complete_node(session, previous)
+        if completed:
+            logger.info("navigate next completed current node session=%s node=%s", session.id, previous.id)
+
     node = nav.navigate_next()
     if node:
         session.phase = LearningPhase.DEEP_DIVE
@@ -224,7 +230,7 @@ async def navigate_next(session_id: str):
         "phase": session.phase.value,
         "breadcrumb": nav.get_breadcrumb(),
         "messages": [m.model_dump(mode="json") for m in current.conversation_history] if current else [],
-        "hasNext": node is not None and nav.has_next(),
+        "hasNext": node is not None,
     }
 
 
@@ -239,8 +245,10 @@ async def get_messages(session_id: str):
     current = nav.get_current_node()
     if not current:
         return [m.model_dump(mode="json") for m in session.conversation_history]
-    if session.phase in (LearningPhase.QUESTIONING, LearningPhase.SUMMARIZATION):
+    if session.phase == LearningPhase.QUESTIONING:
         return [m.model_dump(mode="json") for m in session.conversation_history]
+    if session.phase == LearningPhase.SUMMARIZATION:
+        return _summary_messages(session, current)
     return [m.model_dump(mode="json") for m in current.conversation_history]
 
 
@@ -378,6 +386,14 @@ def _session_response(session):
 
 
 def _current_messages(session, current) -> list[dict]:
-    if current and session.phase not in (LearningPhase.QUESTIONING, LearningPhase.SUMMARIZATION):
+    if current and session.phase == LearningPhase.SUMMARIZATION:
+        return _summary_messages(session, current)
+    if current and session.phase != LearningPhase.QUESTIONING:
         return [m.model_dump(mode="json") for m in current.conversation_history]
     return [m.model_dump(mode="json") for m in session.conversation_history]
+
+
+def _summary_messages(session, current) -> list[dict]:
+    node_msgs = [m.model_dump(mode="json") for m in current.conversation_history]
+    session_msgs = [m.model_dump(mode="json") for m in session.conversation_history]
+    return node_msgs + session_msgs

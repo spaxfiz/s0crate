@@ -7,7 +7,7 @@ import type {
   SettingsResponse,
 } from './types'
 
-const BASE = '/api'
+const BASE = import.meta.env.VITE_API_BASE || '/api'
 
 async function request<T>(path: string, options?: RequestInit, retries = 3): Promise<T> {
   for (let attempt = 0; attempt < retries; attempt++) {

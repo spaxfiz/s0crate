@@ -64,6 +64,12 @@ export default function App() {
     setDrawerOpen(false)
   }
 
+  const handleOpenDrawer = () => {
+    window.scrollTo({ top: 0, left: 0 })
+    document.scrollingElement?.scrollTo({ top: 0, left: 0 })
+    setDrawerOpen(true)
+  }
+
   return (
     <div style={{
       display: 'flex',
@@ -84,7 +90,7 @@ export default function App() {
           background: 'var(--paper)',
           color: 'var(--crimson)',
           fontFamily: 'var(--sans)',
-          fontSize: 12,
+          fontSize: 13,
           borderRadius: 4,
         }}>
           {backendError}
@@ -95,7 +101,7 @@ export default function App() {
         {view === 'home' && (
           <HomeView onStartSession={handleStartSession} onOpenSession={handleOpenSession} />
         )}
-        {view === 'chat' && current && <ChatView />}
+        {view === 'chat' && current && <ChatView onOpenDrawer={handleOpenDrawer} />}
         {view === 'chat' && !current && (
           <HomeView onStartSession={handleStartSession} onOpenSession={handleOpenSession} />
         )}
@@ -104,7 +110,7 @@ export default function App() {
       <BottomNav
         view={view}
         setView={setView}
-        onOpenDrawer={() => setDrawerOpen(true)}
+        onOpenDrawer={handleOpenDrawer}
       />
 
       {drawerOpen && (

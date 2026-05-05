@@ -10,7 +10,7 @@ function HomeView({ onOpenSession, onNewSession }){
         <div style={{ textAlign:'center', marginBottom: 56 }}>
           <div className="label" style={{ marginBottom: 10 }}>Bibliotheca · 学习库</div>
           <h1 style={{ fontFamily:'var(--display)', fontSize: 56, fontWeight: 600, margin: 0, color:'var(--ink)', letterSpacing:'0.01em' }}>
-            What shall we learn today?
+            今天学什么?
           </h1>
           <div style={{ fontFamily:'var(--serif)', fontSize: 17, color:'var(--ink-soft)', marginTop: 8, fontStyle:'italic' }}>
             提出一个问题，让 Socrate 与你一同求索。

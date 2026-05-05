@@ -97,6 +97,20 @@ export interface SSENextUnavailableChunk {
   content: string
 }
 
+export interface SSENavigateToNextChunk {
+  type: 'navigate_to_next'
+}
+
+export interface SSESyllabusRetryChunk {
+  type: 'syllabus_retry'
+  content: string
+}
+
+export interface SSESyllabusReviewChunk {
+  type: 'syllabus_review'
+  content: string
+}
+
 export type SSEChunk =
   | SSETokenChunk
   | SSEDoneChunk
@@ -105,6 +119,9 @@ export type SSEChunk =
   | SSESyllabusUpdateChunk
   | SSESummaryUpdateChunk
   | SSENextUnavailableChunk
+  | SSENavigateToNextChunk
+  | SSESyllabusRetryChunk
+  | SSESyllabusReviewChunk
 
 export interface NavigationResponse {
   currentNodeId: string | null

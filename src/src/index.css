@@ -78,6 +78,52 @@ html, body, #root {
 .bob2 { animation: bob 1.2s ease-in-out 0.15s infinite; }
 .bob3 { animation: bob 1.2s ease-in-out 0.3s infinite; }
 
+@keyframes syllabus-ring {
+  0% { transform: scale(0.82); opacity: 0.78; }
+  70% { transform: scale(1.18); opacity: 0; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+@keyframes syllabus-scan {
+  0% { transform: translateY(-16px); opacity: 0; }
+  18% { opacity: 0.8; }
+  100% { transform: translateY(16px); opacity: 0; }
+}
+@keyframes syllabus-step {
+  0%, 100% { border-color: var(--rule-soft); color: var(--ink-mute); background: rgba(245,241,230,0.45); }
+  45% { border-color: var(--accent-soft); color: var(--accent-deep); background: rgba(196,164,124,0.16); }
+}
+.syllabus-orb {
+  border: 1px solid var(--accent-soft);
+  overflow: hidden;
+}
+.syllabus-ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1px solid rgba(139,111,71,0.45);
+  animation: syllabus-ring 1.7s ease-out infinite;
+}
+.syllabus-scan {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  animation: syllabus-scan 1.5s ease-in-out infinite;
+}
+.syllabus-step {
+  min-width: 0;
+  padding: 6px 4px;
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink-mute);
+  animation: syllabus-step 1.8s ease-in-out infinite;
+}
+
 .ornament {
   text-align: center;
   font-family: var(--display);
