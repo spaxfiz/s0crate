@@ -1,7 +1,8 @@
 {
-  "name": "src",
-  "private": true,
+  "name": "socrate-desktop",
   "version": "0.0.0",
+  "description": "Socrate desktop frontend",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",

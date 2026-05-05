@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+.build/
 
 # Virtual environments
 .venv
@@ -14,12 +15,18 @@ node_modules/
 
 # Frontend build
 src/dist/
+h5/dist/
+*.tsbuildinfo
 
 # Learning output
 learning-output/
 
 # Runtime logs
 logs/
+
+# Private deployment scripts
+scripts/deploy-h5-vps.sh
+scripts/deploy-*.local.sh
 
 # Environment
 .env
@@ -34,3 +41,6 @@ backend/.env
 
 # Rust
 target/
+
+# Generated Tauri sidecars
+src-tauri/binaries/
