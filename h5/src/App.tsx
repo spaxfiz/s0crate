@@ -3,12 +3,13 @@ import { useSessionStore } from './stores/sessionStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { HomeView } from './components/HomeView'
 import { ChatView } from './components/ChatView'
+import { ForkView } from './components/Fork/ForkView'
 import { BottomNav } from './components/BottomNav'
 import { DrawerNav } from './components/DrawerNav'
 import { SettingsModal } from './components/Settings/SettingsModal'
 import { api } from './lib/api'
 
-type View = 'home' | 'chat'
+type View = 'home' | 'chat' | 'fork'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -101,7 +102,8 @@ export default function App() {
         {view === 'home' && (
           <HomeView onStartSession={handleStartSession} onOpenSession={handleOpenSession} />
         )}
-        {view === 'chat' && current && <ChatView onOpenDrawer={handleOpenDrawer} />}
+        {view === 'chat' && current && <ChatView onOpenDrawer={handleOpenDrawer} onOpenFork={() => setView('fork')} />}
+        {view === 'fork' && current && <ForkView onBack={() => setView('chat')} />}
         {view === 'chat' && !current && (
           <HomeView onStartSession={handleStartSession} onOpenSession={handleOpenSession} />
         )}

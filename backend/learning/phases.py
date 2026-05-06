@@ -17,6 +17,7 @@ from backend.ai.engine import AIEngine
 from backend.ai.prompts import (
     QUESTIONING_PROMPT, SYLLABUS_PROMPT, REVIEW_PROMPT,
     DEEP_DIVE_PROMPT, SUMMARY_PROMPT, PROFILE_DISTILLATION_PROMPT,
+    FORK_CHAT_PROMPT,
 )
 from backend.config import Settings
 from backend.learning.compression import ContextCompressor
@@ -597,6 +598,60 @@ class PhaseOrchestrator:
                     "options": options,
                     "action": action or {"type": "save_summary", "payload": {}},
                 }
+
+    async def handle_fork_chat(
+        self,
+        session: LearningSession,
+        excerpt: str,
+        history: list[dict],
+        user_message: str,
+    ) -> AsyncGenerator[dict, None]:
+        """Answer a stateless side conversation grounded in a selected excerpt."""
+        topic = session.original_question or session.name
+        prompt = FORK_CHAT_PROMPT.format(topic=topic, excerpt=excerpt)
+        tier = self._tier(session)
+        safe_history = self._sanitize_fork_history(history)
+        logger.info(
+            "fork chat start session=%s excerpt_chars=%s history=%s message_chars=%s",
+            session.id,
+            len(excerpt),
+            len(safe_history),
+            len(user_message),
+        )
+
+        full_raw = ""
+        async for chunk in self._stream_with_early_done(
+            prompt,
+            safe_history,
+            user_message,
+            max_tokens=self.settings.deep_dive_max_tokens,
+            tier=tier,
+        ):
+            if chunk["type"] == "token":
+                yield chunk
+            elif chunk["type"] == "done":
+                full_raw = chunk["content"]
+                self._log_ai(session, "fork_chat", user_message, full_raw)
+                content, options, action = self._split_response(full_raw)
+                if not options:
+                    options = DEFAULT_DEEP_DIVE_OPTIONS
+                yield {
+                    "type": "done",
+                    "content": content,
+                    "options": options,
+                    "action": action,
+                }
+                logger.info("fork chat done session=%s response_chars=%s", session.id, len(content))
+
+    def _sanitize_fork_history(self, history: list[dict]) -> list[dict]:
+        safe: list[dict] = []
+        for item in history[-20:]:
+            role = item.get("role")
+            content = item.get("content")
+            if role not in {"user", "assistant"} or not isinstance(content, str):
+                continue
+            safe.append({"role": role, "content": content[:6000]})
+        return safe
 
     def _build_history(self, node: SyllabusNode | None, session: LearningSession) -> list[dict]:
         if node:

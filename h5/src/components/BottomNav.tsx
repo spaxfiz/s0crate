@@ -1,7 +1,7 @@
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
-type View = 'home' | 'chat'
+type View = 'home' | 'chat' | 'fork'
 
 export function BottomNav({ view, setView, onOpenDrawer }: {
   view: View

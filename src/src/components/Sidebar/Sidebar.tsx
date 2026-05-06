@@ -3,7 +3,7 @@ import { useSessionStore } from '../../stores/sessionStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import type { NodeStatus, SyllabusNode } from '../../lib/types'
 
-type View = 'home' | 'chat' | 'map'
+type View = 'home' | 'chat' | 'map' | 'fork'
 
 const EMPTY_SYLLABUS: SyllabusNode[] = []
 

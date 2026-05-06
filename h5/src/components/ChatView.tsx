@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useSessionStore } from '../stores/sessionStore'
@@ -135,7 +135,11 @@ function SyllabusGeneratingState({ status, retrying }: { status: string | null; 
   )
 }
 
-export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
+function hasEnoughForkSelection(text: string): boolean {
+  return Array.from(text.replace(/\s+/g, '')).length >= 2
+}
+
+export function ChatView({ onOpenDrawer, onOpenFork }: { onOpenDrawer?: () => void; onOpenFork?: () => void }) {
   const {
     current,
     sendMessage,
@@ -149,9 +153,11 @@ export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
     navigateNext,
     createSummary,
     clearError,
+    setForkExcerpt,
   } = useSessionStore()
   const [input, setInput] = useState('')
   const [optionsHiddenAt, setOptionsHiddenAt] = useState<number | null>(null)
+  const [selectionPopup, setSelectionPopup] = useState<{ text: string; x: number; y: number } | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -185,6 +191,68 @@ export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [abortStreaming, isStreaming])
+
+  const captureSelection = useCallback(() => {
+    const container = scrollRef.current
+    const selection = window.getSelection()
+    const text = selection?.toString().trim() || ''
+    if (!container || !selection || !hasEnoughForkSelection(text) || selection.rangeCount === 0) {
+      setSelectionPopup(null)
+      return
+    }
+    const range = selection.getRangeAt(0)
+    const elementFromNode = (node: Node | null): Element | null => {
+      if (!node) return null
+      return node.nodeType === Node.ELEMENT_NODE ? node as Element : node.parentElement
+    }
+    const anchorElement = elementFromNode(selection.anchorNode)
+    const focusElement = elementFromNode(selection.focusNode)
+    if (!anchorElement || !focusElement || !container.contains(anchorElement) || !container.contains(focusElement)) {
+      setSelectionPopup(null)
+      return
+    }
+    const boundingRect = range.getBoundingClientRect()
+    const rect = (boundingRect.width || boundingRect.height)
+      ? boundingRect
+      : Array.from(range.getClientRects()).find(r => r.width || r.height)
+    if (!rect || (!rect.width && !rect.height)) return
+    setSelectionPopup({
+      text,
+      x: Math.min(window.innerWidth - 82, Math.max(12, rect.left + rect.width / 2 - 32)),
+      y: Math.max(12, rect.top - 40),
+    })
+  }, [])
+
+  const scheduleSelectionCapture = useCallback((delay = 0) => {
+    window.setTimeout(captureSelection, delay)
+  }, [captureSelection])
+
+  useEffect(() => {
+    let timer: number | null = null
+    const schedule = () => {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(captureSelection, 80)
+    }
+    document.addEventListener('selectionchange', schedule)
+    document.addEventListener('pointerup', schedule)
+    document.addEventListener('touchend', schedule)
+    document.addEventListener('keyup', schedule)
+    return () => {
+      if (timer !== null) window.clearTimeout(timer)
+      document.removeEventListener('selectionchange', schedule)
+      document.removeEventListener('pointerup', schedule)
+      document.removeEventListener('touchend', schedule)
+      document.removeEventListener('keyup', schedule)
+    }
+  }, [captureSelection])
+
+  const openFork = () => {
+    if (!selectionPopup) return
+    setForkExcerpt(selectionPopup.text)
+    setSelectionPopup(null)
+    window.getSelection()?.removeAllRanges()
+    onOpenFork?.()
+  }
 
   const send = (text: string) => {
     if (!text.trim()) return
@@ -250,7 +318,13 @@ export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
       </div>
 
       {/* Conversation */}
-      <div ref={scrollRef} className="thin-scroll" style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 16px' }}>
+      <div
+        ref={scrollRef}
+        className="thin-scroll"
+        onMouseUp={() => scheduleSelectionCapture()}
+        onTouchEnd={() => scheduleSelectionCapture(80)}
+        style={{ flex: 1, overflowY: 'auto', padding: '20px 16px 16px' }}
+      >
         <div style={{ maxWidth: 560, margin: '0 auto' }}>
           {/* Title block */}
           {phase === 'deep_dive' && currentNode && (
@@ -398,6 +472,31 @@ export function ChatView({ onOpenDrawer }: { onOpenDrawer?: () => void }) {
           <div style={{ height: 12 }} />
         </div>
       </div>
+
+      {selectionPopup && (
+        <button
+          onMouseDown={e => e.preventDefault()}
+          onClick={openFork}
+          style={{
+            position: 'fixed',
+            left: selectionPopup.x,
+            top: selectionPopup.y,
+            zIndex: 80,
+            border: '1px solid var(--accent)',
+            background: 'var(--ink)',
+            color: 'var(--paper)',
+            borderRadius: 999,
+            padding: '7px 12px',
+            boxShadow: '0 8px 24px rgba(60,40,20,0.18)',
+            cursor: 'pointer',
+            fontFamily: 'var(--sans)',
+            fontSize: 12,
+            letterSpacing: '0.06em',
+          }}
+        >
+          Fork
+        </button>
+      )}
 
       {/* Quick actions - horizontal scroll */}
       {((phase === 'deep_dive' && !isEmptyLeafNode) || phase === 'summarization') && !isStreaming && (

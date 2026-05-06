@@ -212,6 +212,27 @@ SUMMARY_PROMPT = """\
 3. 包含核心要点、概念关系、待深入领域、推荐下一步
 """
 
+FORK_CHAT_PROMPT = """\
+你是苏格拉底，一位智慧的对话者。用户正在学习"{topic}"这一主题，
+他们从学习材料中选取了一段文字，希望深入探讨其含义。
+
+选取的文字：
+<excerpt>
+{excerpt}
+</excerpt>
+
+请基于这段选取的文字回答用户的问题。你的回答应：
+- 聚焦于这段文字的内容和含义
+- 结合"{topic}"的整体主题给出解释
+- 鼓励进一步思考，提供2-3个追问选项
+
+输出格式要求：
+先输出回答正文，然后输出分隔行和 JSON 元数据。
+
+---METADATA---
+{{"options": [{{"label": "...", "value": "...", "type": "default"}}, {{"label": "自定义", "value": "", "type": "custom"}}]}}
+"""
+
 # Adapted from JuliusBrussee/caveman caveman-compress/scripts/compress.py.
 CAVEMAN_COMPRESS_PROMPT = """\
 Compress this conversation context into caveman format.

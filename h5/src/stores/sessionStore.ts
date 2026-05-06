@@ -18,6 +18,10 @@ interface SessionState {
   errorMessage: string | null
   noticeMessage: string | null
   abortController: AbortController | null
+  forkExcerpt: string | null
+  forkHistory: ChatMessage[]
+  forkIsStreaming: boolean
+  forkStreamContent: string
 
   loadSessions: () => Promise<void>
   createSession: (question: string) => Promise<LearningSession>
@@ -30,6 +34,9 @@ interface SessionState {
   navigateBack: () => Promise<void>
   navigateOverview: () => Promise<void>
   navigateNext: () => Promise<void>
+  setForkExcerpt: (text: string) => void
+  sendForkMessage: (message: string) => Promise<void>
+  clearFork: () => void
   abortStreaming: () => void
   clearError: () => void
   clearCurrent: () => void
@@ -111,6 +118,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   errorMessage: null,
   noticeMessage: null,
   abortController: null,
+  forkExcerpt: null,
+  forkHistory: [],
+  forkIsStreaming: false,
+  forkStreamContent: '',
 
   loadSessions: async () => {
     const sessions = await api.listSessions()
@@ -119,7 +130,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createSession: async (question: string) => {
     const session = await api.createSession(question, 'fast')
-    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false })
+    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false, forkExcerpt: null, forkHistory: [], forkIsStreaming: false, forkStreamContent: '' })
     void get().loadSessions()
     void get().startSession()
     return session
@@ -127,13 +138,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   loadSession: async (id: string) => {
     const session = await api.getSession(id)
-    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false })
+    set({ current: session, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false, forkExcerpt: null, forkHistory: [], forkIsStreaming: false, forkStreamContent: '' })
   },
 
   deleteSession: async (id: string) => {
     await api.deleteSession(id)
     const { current } = get()
-    if (current?.id === id) set({ current: null })
+    if (current?.id === id) set({ current: null, forkExcerpt: null, forkHistory: [], forkIsStreaming: false, forkStreamContent: '' })
     void get().loadSessions()
   },
 
@@ -409,11 +420,85 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await refreshCurrent(set, get().current)
   },
 
+  setForkExcerpt: (text: string) => {
+    set({
+      forkExcerpt: text,
+      forkHistory: [],
+      forkIsStreaming: false,
+      forkStreamContent: '',
+      errorMessage: null,
+      noticeMessage: null,
+    })
+  },
+
+  sendForkMessage: async (message: string) => {
+    const { current, forkExcerpt, forkHistory } = get()
+    const trimmed = message.trim()
+    if (!current || !forkExcerpt || !trimmed) return
+
+    const controller = new AbortController()
+    const userMsg: ChatMessage = {
+      role: 'user',
+      content: trimmed,
+      timestamp: new Date().toISOString(),
+      nodeId: current.currentNodeId,
+      options: null,
+    }
+    const historyBeforeSend = forkHistory
+
+    set({
+      forkHistory: [...historyBeforeSend, userMsg],
+      forkIsStreaming: true,
+      forkStreamContent: '',
+      errorMessage: null,
+      noticeMessage: null,
+      abortController: controller,
+    })
+
+    try {
+      const response = await api.forkChat(current.id, {
+        excerpt: forkExcerpt,
+        message: trimmed,
+        history: historyBeforeSend.map(({ role, content }) => ({ role, content })),
+      }, controller.signal)
+      let fullContent = ''
+
+      for await (const data of readSSEStream(response)) {
+        if (data.type === 'token') {
+          fullContent += data.content
+          set({ forkStreamContent: fullContent })
+        } else if (data.type === 'done') {
+          const aiMsg: ChatMessage = {
+            role: 'assistant',
+            content: data.content,
+            timestamp: new Date().toISOString(),
+            nodeId: get().current?.currentNodeId ?? null,
+            options: data.options?.length ? data.options : null,
+          }
+          set({ forkHistory: [...get().forkHistory, aiMsg] })
+        } else if (data.type === 'error') {
+          set({ errorMessage: data.content })
+        }
+      }
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
+        set({ noticeMessage: '已停止生成' })
+      } else {
+        console.error('Fork chat error:', error)
+        set({ errorMessage: errorText(error) })
+      }
+    } finally {
+      set({ forkIsStreaming: false, forkStreamContent: '', abortController: null })
+    }
+  },
+
+  clearFork: () => set({ forkExcerpt: null, forkHistory: [], forkIsStreaming: false, forkStreamContent: '' }),
+
   abortStreaming: () => {
     get().abortController?.abort()
   },
 
   clearError: () => set({ errorMessage: null, noticeMessage: null }),
 
-  clearCurrent: () => set({ current: null, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false }),
+  clearCurrent: () => set({ current: null, errorMessage: null, noticeMessage: null, syllabusStatus: null, syllabusRetrying: false, forkExcerpt: null, forkHistory: [], forkIsStreaming: false, forkStreamContent: '' }),
 }))

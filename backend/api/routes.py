@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from backend.api.models import (
-    CreateSessionRequest, ChatRequest, NavigateRequest, SaveSettingsRequest,
+    CreateSessionRequest, ChatRequest, ForkChatRequest, NavigateRequest, SaveSettingsRequest,
     LearningPhase,
 )
 from backend.learning.session import SessionManager
@@ -276,6 +276,51 @@ async def chat(session_id: str, req: ChatRequest):
             yield f"event: error\ndata: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
         finally:
             sessions.save(session)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.post("/sessions/{session_id}/fork-chat")
+async def fork_chat(session_id: str, req: ForkChatRequest):
+    try:
+        session = sessions.load(session_id)
+    except FileNotFoundError:
+        raise HTTPException(404, "Session not found")
+
+    excerpt = req.excerpt.strip()
+    message = req.message.strip()
+    if not excerpt:
+        raise HTTPException(400, "Excerpt is required")
+    if not message:
+        raise HTTPException(400, "Message is required")
+
+    async def event_stream():
+        try:
+            logger.info(
+                "sse start fork chat session=%s excerpt_chars=%s history=%s message_chars=%s",
+                session.id,
+                len(excerpt),
+                len(req.history),
+                len(message),
+            )
+            async for chunk in orchestrator.handle_fork_chat(session, excerpt, req.history, message):
+                event_type = chunk.get("type", "token")
+                yield f"event: {event_type}\ndata: {json.dumps(chunk, ensure_ascii=False)}\n\n"
+            logger.info("sse done fork chat session=%s", session.id)
+        except asyncio.CancelledError:
+            logger.info("sse cancelled fork chat session=%s", session.id)
+            raise
+        except Exception as e:
+            logger.exception("sse error fork chat session=%s", session.id)
+            yield f"event: error\ndata: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(
         event_stream(),

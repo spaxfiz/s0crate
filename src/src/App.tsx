@@ -4,11 +4,12 @@ import { useSettingsStore } from './stores/settingsStore'
 import { Sidebar } from './components/Sidebar/Sidebar'
 import { HomeView } from './components/HomeView'
 import { ChatView } from './components/Chat/ChatView'
+import { ForkView } from './components/Fork/ForkView'
 import { MapView } from './components/MapView'
 import { SettingsModal } from './components/Settings/SettingsModal'
 import { api } from './lib/api'
 
-type View = 'home' | 'chat' | 'map'
+type View = 'home' | 'chat' | 'map' | 'fork'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -91,7 +92,8 @@ export default function App() {
         {view === 'home' && (
           <HomeView onStartSession={handleStartSession} onOpenSession={handleOpenSession} />
         )}
-        {view === 'chat' && current && <ChatView />}
+        {view === 'chat' && current && <ChatView onOpenFork={() => setView('fork')} />}
+        {view === 'fork' && current && <ForkView onBack={() => setView('chat')} />}
         {view === 'map' && <MapView onNavigate={handleNavigate} />}
         {isOpen && <SettingsModal />}
       </main>

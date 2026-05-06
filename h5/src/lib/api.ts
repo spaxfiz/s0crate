@@ -1,5 +1,6 @@
 import type {
   ChatMessage,
+  ForkChatRequest,
   LearningSession,
   NavigationResponse,
   SaveSettingsPayload,
@@ -95,6 +96,14 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
+      signal,
+    }),
+
+  forkChat: (id: string, req: ForkChatRequest, signal?: AbortSignal) =>
+    fetch(`${BASE}/sessions/${id}/fork-chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
       signal,
     }),
 

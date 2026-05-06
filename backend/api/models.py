@@ -95,6 +95,12 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class ForkChatRequest(BaseModel):
+    excerpt: str
+    message: str
+    history: list[dict] = Field(default_factory=list)
+
+
 class NavigateRequest(BaseModel):
     node_id: str
 

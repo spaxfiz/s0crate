@@ -28,6 +28,12 @@ export interface ChatMessage {
   options: ChatOption[] | null
 }
 
+export interface ForkChatRequest {
+  excerpt: string
+  message: string
+  history: Pick<ChatMessage, 'role' | 'content'>[]
+}
+
 export interface LearningSession {
   id: string
   name: string
